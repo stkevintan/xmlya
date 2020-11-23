@@ -1,0 +1,19 @@
+{
+	"compilerOptions": {
+		"module": "COMMONJS",
+		"target": "ESNext",
+		"moduleResolution": "node",
+		"sourceMap": true,
+		"forceConsistentCasingInFileNames": true,
+		"esModuleInterop": true,
+		"strict": true,
+		"noImplicitReturns": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"noFallthroughCasesInSwitch": true,
+	},
+	"exclude": [
+		"node_modules",
+		"**/__tests__/**/*"
+	],
+}

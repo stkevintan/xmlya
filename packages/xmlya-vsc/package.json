@@ -1,0 +1,76 @@
+{
+    "name": "@xmlya/vsc",
+    "version": "1.0.1",
+    "description": "vscode extension for Ximalaya",
+    "displayName": "Ximalaya",
+    "publisher": "ktan",
+    "author": "Kevin Tan",
+    "main": "./dist/extension",
+    "icon": "static/icon.png",
+    "engines": {
+        "vscode": "^1.19.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "*"
+    ],
+    "contributes": {
+        "configuration": [],
+        "commands": [
+            {
+                "title": "Hello World",
+                "command": "extension.helloworld"
+            }
+        ],
+        "menus": {}
+    },
+    "scripts": {
+        "start": "rollup -c ./rollup.config.js -w",
+        "build": "rollup -c ./rollup.config.js",
+        "vscode:prepublish": "yarn build"
+    },
+    "husky": {
+        "hooks": {
+            "pre-commit": "lint-staged"
+        }
+    },
+    "lint-staged": {
+        "src/**/*.ts": [
+            "eslint --fix",
+            "prettier --write"
+        ]
+    },
+    "keywords": [
+        "vscode",
+        "ximalaya",
+        "audio",
+        "player"
+    ],
+    "license": "MIT",
+    "devDependencies": {
+        "@rollup/plugin-commonjs": "^16.0.0",
+        "@rollup/plugin-node-resolve": "^10.0.0",
+        "@rollup/plugin-typescript": "^6.1.0",
+        "@types/micromatch": "^4.0.1",
+        "@types/node": "^14.14.9",
+        "@typescript-eslint/eslint-plugin": "^4.8.1",
+        "@typescript-eslint/parser": "^4.8.1",
+        "eslint": "^7.14.0",
+        "eslint-config-prettier": "^6.15.0",
+        "eslint-plugin-prettier": "^3.1.4",
+        "husky": "^4.3.0",
+        "lint-staged": "^10.5.1",
+        "prettier": "^2.2.0",
+        "rollup": "^2.33.3",
+        "tslib": "^2.0.3",
+        "typescript": "^4.1.2"
+    },
+    "dependencies": {
+        "@types/vscode": "^1.51.0",
+        "@xmlya/sdk": "^1.0.0",
+        "micromatch": "^4.0.2",
+        "vscode-test": "^1.4.1"
+    }
+}

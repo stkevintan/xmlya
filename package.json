@@ -1,0 +1,11 @@
+{
+    "private": true,
+    "scripts": {
+        "build": "./scripts/yarnRun.ps1 build",
+        "start": "./scripts/yarnRun.ps1 -Parallel start"
+    },
+    "workspaces": [
+        "packages/xmlya-sdk",
+        "packages/xmlya-vsc"
+    ]
+}
