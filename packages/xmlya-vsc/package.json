@@ -17,11 +17,22 @@
         "*"
     ],
     "contributes": {
-        "configuration": [],
+        "configuration": [{
+            "title": "Xmlya configuration",
+            "properties": {
+                "xmlya.cookie": {
+                    "type": "string",
+                    "default": "",
+                    "description": "User login cookie of Ximalaya web site",
+                    "scope": "application"
+                }
+            }
+        }],
         "commands": [
             {
-                "title": "Hello World",
-                "command": "extension.helloworld"
+                "title": "User Home",
+                "command": "xmlya.user.home",
+                "category": "xmlya.user"
             }
         ],
         "menus": {}

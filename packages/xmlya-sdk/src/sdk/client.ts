@@ -32,7 +32,7 @@ const BaseHeaders = {
 /* eslint-enable @typescript-eslint/naming-convention */
 
 export interface IRequestOptions {
-    cookie?: string;
+    cookie?: string | (() => string);
 }
 
 export class Client implements IClient {
@@ -46,7 +46,7 @@ export class Client implements IClient {
         this.client = got.extend({
             prefixUrl: 'https://www.ximalaya.com',
             headers: {
-                cookie: options.cookie,
+                cookie: typeof options.cookie === 'function' ? options.cookie() : options.cookie,
                 ...BaseHeaders,
             },
             handlers: [

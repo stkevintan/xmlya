@@ -1,12 +1,9 @@
 import * as vscode from 'vscode';
+import { App } from './app';
 
 export function activate(context: vscode.ExtensionContext) {
-    const helloWorld = vscode.commands.registerCommand("extension.helloworld", async () => {
-        vscode.window.showInformationMessage("Hello");
-    });
-    context.subscriptions.push(helloWorld);
+    const app = new App(context);
+    app.run();
 }
 
-export function deactivate() {
-    
-}
+export function deactivate() {}
