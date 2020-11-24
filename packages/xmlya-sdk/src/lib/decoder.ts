@@ -1,12 +1,17 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import loader from '@assemblyscript/loader';
-import fs from 'fs';
+import got from 'got';
 import { URLSearchParams } from 'url';
 import { IFileParams, INonFreeTrackAudio } from '../types';
 import { lazy } from './utilities';
 
 const wasm$ = lazy(async () => {
-    const wasm = await loader.instantiate(fs.readFileSync(require.resolve('../../static/native.wasm')));
+    const buffer  = got('https://github.com/stkevintan/xmlya/releases/download/1.0.0/native.wasm', {
+        responseType: 'buffer',
+        resolveBodyOnly: true,
+    });
+    // nodejs don't support instatiateStreaming
+    const wasm = await loader.instantiate(buffer);
     const { __getString, __allocString, __retain, __release } = wasm.exports;
     const { getFileName, getFileParams } = wasm.exports as Record<string, (...args: number[]) => number>;
     return [

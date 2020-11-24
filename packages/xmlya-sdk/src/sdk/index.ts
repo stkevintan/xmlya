@@ -4,7 +4,7 @@ import {
     IContextTracks,
     ICurrentUser,
     IFavorites,
-    IListenHistories,
+    IPlayHistory,
     INonFreeTrackAudio,
     IPaginator,
     IPurchasedAlbums,
@@ -22,8 +22,8 @@ export class XmlyaSDK {
     // my
     getCurrentUser = () => this.client.get<ICurrentUser>('revision/main/getCurrentUser');
 
-    getListenHistories = (params?: IPaginator & { includeChannel?: boolean; includeRadio?: boolean }) =>
-        this.client.get<IListenHistories>('revision/track/history/listen', params);
+    getPlayHistory = (params?: IPaginator & { includeChannel?: boolean; includeRadio?: boolean }) =>
+        this.client.get<IPlayHistory>('revision/track/history/listen', params);
 
     getSubscriptions = (params?: IPaginator & { subType?: number; category?: string }) => {
         const { pageNum: num, pageSize: size, ...rest } = params ?? {};

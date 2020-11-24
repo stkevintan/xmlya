@@ -17,22 +17,34 @@
         "*"
     ],
     "contributes": {
-        "configuration": [{
-            "title": "Xmlya configuration",
-            "properties": {
-                "xmlya.cookie": {
-                    "type": "string",
-                    "default": "",
-                    "description": "User login cookie of Ximalaya web site",
-                    "scope": "application"
+        "configuration": [
+            {
+                "title": "Xmlya configuration",
+                "properties": {
+                    "xmlya.cookie": {
+                        "type": "string",
+                        "default": "",
+                        "description": "User login cookie of Ximalaya web site",
+                        "scope": "application"
+                    }
                 }
             }
-        }],
+        ],
         "commands": [
             {
                 "title": "User Home",
                 "command": "xmlya.user.home",
-                "category": "xmlya.user"
+                "category": "Ximalaya"
+            },
+            {
+                "title": "Play History",
+                "command": "xmlya.user.playHistory",
+                "category": "Ximalaya"
+            },
+            {
+                "title": "Subscriptions",
+                "command": "xmlya.user.subscriptions",
+                "category": "Ximalaya"
             }
         ],
         "menus": {}
@@ -82,6 +94,7 @@
         "@types/vscode": "^1.51.0",
         "@xmlya/sdk": "^1.0.0",
         "micromatch": "^4.0.2",
+        "reflect-metadata": "^0.1.13",
         "vscode-test": "^1.4.1"
     }
 }

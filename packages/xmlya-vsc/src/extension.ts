@@ -1,9 +1,13 @@
 import * as vscode from 'vscode';
 import { App } from './app';
+import 'reflect-metadata';
 
+let app: App;
 export function activate(context: vscode.ExtensionContext) {
-    const app = new App(context);
+    app = new App(context);
     app.run();
 }
 
-export function deactivate() {}
+export function deactivate() {
+    app?.stop();
+}

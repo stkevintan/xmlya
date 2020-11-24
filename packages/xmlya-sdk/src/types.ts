@@ -65,7 +65,7 @@ export interface IHistory {
     vipType: number;
 }
 
-export interface IListenHistories extends IPagination {
+export interface IPlayHistory extends IPagination {
     uid: number;
     yesterday: IHistory[];
     today: IHistory[];

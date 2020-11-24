@@ -9,8 +9,7 @@
             "type": "extensionHost",
             "request": "launch",
             "args": ["--extensionDevelopmentPath=${workspaceFolder}/packages/xmlya-vsc"],
-            "outFiles": ["${workspaceFolder}/packages/xmlya-vsc/dist/**/*.js"],
-            "preLaunchTask": "${defaultBuildTask}"
+            "outFiles": ["${workspaceFolder}/packages/xmlya-vsc/dist/**/*.js"]
         }
     ]
 }

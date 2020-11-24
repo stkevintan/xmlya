@@ -3,6 +3,8 @@
     "compilerOptions": {
         "rootDir": "./src",
         "baseUrl": ".",
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
         "paths": {
             "src/*": ["src/*"]
         }
