@@ -22,10 +22,9 @@ export class Runnable extends vscode.Disposable {
 
     runInContext(context: vscode.ExtensionContext) {
         const commands = Reflect.getMetadata(CommandSym, this) as { name: string; propertyKey: string }[];
-        console.log(commands);
         commands?.map((command) =>
             context.subscriptions.push(
-                vscode.commands.registerCommand(command.name, (this as any)[command.propertyKey].bind(this))
+                vscode.commands.registerCommand(`xmlya.${command.name}`, (this as any)[command.propertyKey].bind(this))
             )
         );
     }

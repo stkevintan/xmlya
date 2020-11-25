@@ -19,7 +19,7 @@
     "contributes": {
         "configuration": [
             {
-                "title": "Xmlya configuration",
+                "title": "Ximalaya configuration",
                 "properties": {
                     "xmlya.cookie": {
                         "type": "string",
@@ -32,8 +32,8 @@
         ],
         "commands": [
             {
-                "title": "User Home",
-                "command": "xmlya.user.home",
+                "title": "User Menu",
+                "command": "xmlya.user.menu",
                 "category": "Ximalaya"
             },
             {
@@ -44,6 +44,11 @@
             {
                 "title": "Subscriptions",
                 "command": "xmlya.user.subscriptions",
+                "category": "Ximalaya"
+            },
+            {
+                "title": "Favorites",
+                "command": "xmlya.user.favorites",
                 "category": "Ximalaya"
             }
         ],

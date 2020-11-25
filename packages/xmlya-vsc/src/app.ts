@@ -1,22 +1,22 @@
 import { Client, XmlyaSDK } from '@xmlya/sdk';
 import * as vscode from 'vscode';
 import { Configuration } from './configuration';
-import { QuickPicker } from './quick-picker';
+import { Interactor } from './interactor';
 
 export class App {
     private sdk: XmlyaSDK;
-    private quickPicker: QuickPicker;
+    private interactor: Interactor;
     constructor(private context: vscode.ExtensionContext) {
         const client = new Client({ cookie: Configuration.cookie });
         this.sdk = new XmlyaSDK(client);
-        this.quickPicker= new QuickPicker(this.sdk);
+        this.interactor= new Interactor(this.sdk);
     }
 
     run() {
-        this.quickPicker.runInContext(this.context);
+        this.interactor.runInContext(this.context);
     }
 
     stop() {
-        this.quickPicker.dispose();
+        this.interactor.dispose();
     }
 }
