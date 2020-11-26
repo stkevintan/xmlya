@@ -50,6 +50,11 @@
                 "title": "Favorites",
                 "command": "xmlya.user.favorites",
                 "category": "Ximalaya"
+            },
+            {
+                "title": "Purchased Albums",
+                "command": "xmlya.user.purchasedAlbums",
+                "category": "Ximalaya"
             }
         ],
         "menus": {}

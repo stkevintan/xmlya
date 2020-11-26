@@ -10,6 +10,10 @@ export interface IPaginator {
     pageSize?: number;
 }
 
+export interface ISortablePaginator extends IPaginator {
+    sort?: SortOrder;
+}
+
 export interface IPagination {
     pageNum: number;
     pageSize: number;

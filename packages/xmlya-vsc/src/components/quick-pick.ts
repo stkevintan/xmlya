@@ -1,11 +1,14 @@
-import { IPagination } from '@xmlya/sdk';
+import { IPagination, SortOrder } from '@xmlya/sdk';
 import { leftPad } from 'src/lib';
-import { ToggleOnIcon, ToggleOffIcon, PrevPageIcon, NextPageIcon } from 'src/lib/constant';
+import { ToggleOnIcon, ToggleOffIcon, PrevPageIcon, NextPageIcon, AscOrderIcon, DescOrderIcon } from 'src/lib/constant';
 import * as vscode from 'vscode';
 
 export interface IRenderOptions {
     items: QuickPickTreeItem[];
     pagination?: IPagination;
+    sort?: SortOrder;
+    onPageChange?: (pageNum: number, sort?: SortOrder) => void;
+    onSortChange?: (sort: SortOrder) => void;
 }
 
 export interface IQuickPickItem extends vscode.QuickPickItem {
@@ -26,6 +29,7 @@ export class QuickPickTreeLeaf {
 }
 
 const LoadingTreeItem = new QuickPickTreeLeaf('Loading...');
+
 export class QuickPickTreeParent {
     expanded = true;
 
@@ -61,9 +65,9 @@ export class QuickPickTreeParent {
 type QuickPickTreeItem = QuickPickTreeParent | QuickPickTreeLeaf;
 
 export class CtrlButton implements vscode.QuickInputButton {
-    // eslint-disable-next-line @typescript-eslint/naming-convention
+    static readonly Asc = new CtrlButton(AscOrderIcon, 'asc order');
+    static readonly Desc = new CtrlButton(DescOrderIcon, 'desc order');
     static readonly Prev = new CtrlButton(PrevPageIcon, 'previous page');
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     static readonly Next = new CtrlButton(NextPageIcon, 'next page');
 
     readonly iconPath: vscode.ThemeIcon;
@@ -125,22 +129,28 @@ export class QuickPick extends vscode.EventEmitter<CtrlButton> {
     };
 
     private curTreeItems: QuickPickTreeItem[] = [];
+    private eventHandler?: vscode.Disposable;
 
     render(title: string): void;
     render(title: string, items: QuickPickTreeItem[]): void;
     render(title: string, options: IRenderOptions): void;
     render(title: string, itemsOrOptions?: IRenderOptions | QuickPickTreeItem[]): void {
-        let items: QuickPickTreeItem[] = [];
-        let pagination: IPagination | undefined;
+        let options: IRenderOptions;
         if (!itemsOrOptions) {
-            items = [];
+            options = { items: [] };
         } else if (Array.isArray(itemsOrOptions)) {
-            items = itemsOrOptions;
+            options = { items: itemsOrOptions };
         } else {
-            items = itemsOrOptions.items;
-            pagination = itemsOrOptions.pagination;
+            options = itemsOrOptions;
         }
-        this.renderPagination(pagination);
+
+        const { items, pagination, sort, onPageChange, onSortChange } = options;
+
+        if (pagination) {
+            this.renderPagination({ pagination, sort, onPageChange, onSortChange });
+        } else {
+            this.removePagination();
+        }
         this.curTreeItems = items;
         this.quickPick.busy = false;
         this.quickPick.value = '';
@@ -150,22 +160,49 @@ export class QuickPick extends vscode.EventEmitter<CtrlButton> {
         this.quickPick.show();
     }
 
-    renderPagination = (pagination?: IPagination) => {
-        if (!pagination || pagination.pageSize >= pagination.totalCount) {
-            this.quickPick.title = undefined;
-            this.quickPick.buttons = [];
-            return;
-        }
+    private renderPagination = (options: {
+        pagination: IPagination;
+        sort?: SortOrder;
+        onPageChange?: IRenderOptions['onSortChange'];
+        onSortChange?: IRenderOptions['onSortChange'];
+    }) => {
+        const { onPageChange, onSortChange, sort, pagination } = options;
         const { pageNum, pageSize, totalCount } = pagination;
+        if (pageSize >= totalCount) return this.removePagination();
         const lastPage = Math.ceil(totalCount / pageSize);
         this.quickPick.title = `Page: ${pageNum} / ${lastPage}`;
-        this.quickPick.buttons = [pageNum > 1 && CtrlButton.Prev, pageNum < lastPage && CtrlButton.Next].filter(
-            (x): x is CtrlButton => !!x
-        );
+        this.quickPick.buttons = [
+            sort === SortOrder.asc && CtrlButton.Asc,
+            sort === SortOrder.desc && CtrlButton.Desc,
+            pageNum > 1 && CtrlButton.Prev,
+            pageNum < lastPage && CtrlButton.Next,
+        ].filter((x): x is CtrlButton => !!x);
+
+        this.eventHandler?.dispose();
+        this.eventHandler = this.event((button) => {
+            switch (button) {
+                case CtrlButton.Prev:
+                    return onPageChange?.(pageNum - 1);
+                case CtrlButton.Next:
+                    return onPageChange?.(pageNum + 1);
+                case CtrlButton.Asc:
+                    return onSortChange?.(SortOrder.desc);
+                case CtrlButton.Desc:
+                    return onSortChange?.(SortOrder.asc);
+            }
+        });
     };
 
-    loading(title?: string, pagination?: IPagination) {
-        this.render(title || '', { items: [LoadingTreeItem], pagination });
+    private removePagination = () => {
+        this.quickPick.title = undefined;
+        this.quickPick.buttons = [];
+        this.eventHandler?.dispose();
+        this.eventHandler = undefined;
+        return;
+    };
+
+    loading(title?: string) {
+        this.render(title || '', [LoadingTreeItem]);
         this.quickPick.enabled = false;
         this.quickPick.busy = true;
     }
@@ -189,6 +226,7 @@ export class QuickPick extends vscode.EventEmitter<CtrlButton> {
     dispose() {
         super.dispose();
         this.disposables.map((disposable) => disposable.dispose());
+        this.eventHandler?.dispose();
         this.quickPick.dispose();
     }
 }

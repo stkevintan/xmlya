@@ -1,5 +1,8 @@
 import { IndentChars } from "./constant";
-import { PromiseOrNot } from "./types";
+
+
+export type PromiseOrNot<T> = T | Promise<T>;
+
 
 export function leftPad(text: string | undefined, length: number) {
     if (!text) {

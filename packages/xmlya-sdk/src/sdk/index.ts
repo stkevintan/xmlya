@@ -12,6 +12,7 @@ import {
     ITrackAudio,
     ITracksInAlbum,
     SortOrder,
+    ISortablePaginator,
 } from '../types';
 import { IClient } from './client';
 import { decodeNonFreeAudioSrc } from '../lib/decoder';
@@ -49,7 +50,7 @@ export class XmlyaSDK {
         return ret;
     };
 
-    getTracksOfAlbum = async (params: IPaginator & { sort?: SortOrder; albumId: number }): Promise<ITracksInAlbum> => {
+    getTracksOfAlbum = async (params: ISortablePaginator & { albumId: number }): Promise<ITracksInAlbum> => {
         const ret = await this.client.get<any>('revision/album/v1/getTracksList', params);
         return {
             totalCount: ret.trackTotalCount,
