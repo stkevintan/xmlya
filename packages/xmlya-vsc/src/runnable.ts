@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import * as vscode from 'vscode';
-import { Func, isPromise, omit } from './lib';
+import { Func, isPromise } from './lib';
 import { Logger } from './lib/logger';
 
 // eslint-disable-next-line @typescript-eslint/naming-convention

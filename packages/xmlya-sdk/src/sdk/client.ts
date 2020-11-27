@@ -1,6 +1,7 @@
-import got, { Got, Options, Response } from 'got';
+import got, { Got, GotReturn, Options, Response } from 'got';
 import assert from 'assert';
 import { md5 } from '../lib/utilities';
+import { Duplex, Stream } from 'stream';
 
 export type ResBody<T = unknown> = {
     msg: string;
@@ -16,6 +17,7 @@ export interface IClient {
         options?: OverrideOptions
     ): Promise<ResBody<T> & R>;
     get: <T>(url: string, params?: any) => Promise<T>;
+    getStream: (url: string, params?: Options['searchParams'], options?: OverrideOptions) => Duplex;
     // TODO: add other methods: post , delete
 }
 
@@ -83,7 +85,7 @@ export class Client implements IClient {
     async getRaw<T = unknown, R = {}>(
         url: string,
         params?: Options['searchParams'],
-        options?: OverrideOptions
+        options: OverrideOptions = {}
     ): Promise<ResBody<T> & R> {
         try {
             const res = await this.client(url, { searchParams: params, ...options });
@@ -98,5 +100,17 @@ export class Client implements IClient {
             throw e;
         }
     }
-}
 
+    getStream(url: string, params?: Options['searchParams'], options: OverrideOptions = {}): Duplex {
+        try {
+            const request = this.client.stream.get(url, { searchParams: params, ...options });
+            return request;
+        } catch (e) {
+            Error.captureStackTrace(e);
+            if (e.response?.body) {
+                e.message += ` (body: ${e.response.body})`;
+            }
+            throw e;
+        }
+    }
+}
