@@ -1,7 +1,8 @@
-import { Runnable } from './runnable';
-
 import * as vscode from 'vscode';
+import { command, Runnable } from './runnable';
 import { AppContext } from './app-context';
+import { IContextTracks, ITrackAudio, XmlyaSDK } from '@xmlya/sdk';
+import { Logger } from './lib/logger';
 
 interface ICtrlButtonSpec {
     icon: string;
@@ -31,21 +32,22 @@ const controllers: ICtrlButtonSpec[] = [
     },
     {
         title: 'Pause',
-        icon: '$(primitive-square)',
+        icon: '$(debug-pause)',
         command: 'xmlya.player.pause',
         when: 'player.isPlaying',
     },
     {
-        title: 'Ximalaya: Menu',
-        icon: '$(rocket) Ximalaya Start',
+        title: 'Ximalaya',
+        icon: '$(book) 喜马拉雅',
         command: 'xmlya.user.menu',
     },
 ];
 
-export class Controller extends Runnable {
+export class Player extends Runnable {
     private priBase = 600;
     private subscriptions: vscode.Disposable[] = [];
-    private createButton = (spec: ICtrlButtonSpec): vscode.StatusBarItem => {
+
+    private createControllers = (spec: ICtrlButtonSpec): vscode.StatusBarItem => {
         const btn = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, this.priBase++);
         btn.text = spec.icon;
         btn.tooltip = spec.title;
@@ -65,10 +67,45 @@ export class Controller extends Runnable {
         }
     };
 
-    constructor() {
+    private isPlaying = false;
+
+    private volume: number = 30;
+
+    private playContext?: IContextTracks;
+
+    private trackAudio?: ITrackAudio;
+
+    get playList() {
+        return this.playContext?.tracksAudioPlay ?? [];
+    }
+
+    get trackInfo() {
+        if (this.trackAudio === undefined) return undefined;
+        return this.playList.find((track) => track.trackId === this.trackAudio?.trackId);
+    }
+
+    constructor(private sdk: XmlyaSDK) {
         super(() => {
             this.subscriptions.forEach((sub) => sub.dispose());
         });
-        controllers.map(this.createButton);
+        controllers.map(this.createControllers);
+    }
+
+    @command('player.playTrack')
+    async playTrack(trackId: number) {
+        if(trackId === undefined) return;
+        [this.playContext, this.trackAudio] = await Promise.all([
+            this.sdk.getContextTracks({ trackId }),
+            this.sdk.getTrackAudio({ trackId }),
+        ]);
+        this.trackAudio.src = this.trackAudio.src ?? (await this.sdk.getNonFreeTrackAudioSrc({ trackId }));
+        this.play();
+    }
+
+    @command('player.play')
+    async play() {
+        Logger.assert(this.trackAudio, 'No track to play.');
+        Logger.assert(this.trackAudio.src, 'Get audio source failed');
+        Logger.debug(this.trackAudio.src);
     }
 }

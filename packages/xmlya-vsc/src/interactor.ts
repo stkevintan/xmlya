@@ -1,3 +1,4 @@
+import * as vscode from 'vscode';
 import { IAlbum, IPaginator, ISortablePaginator, XmlyaSDK } from '@xmlya/sdk';
 import { QuickPick, QuickPickTreeLeaf, QuickPickTreeParent } from './components/quick-pick';
 import { FavoritesIcon, PlayHistoryIcon, PurchasedIcon, SubscriptionsIcon } from './lib';
@@ -51,7 +52,8 @@ export class Interactor extends Runnable {
                                 new QuickPickTreeLeaf(entry.itemTitle, {
                                     description: entry.startedAtFormatText,
                                     detail: entry.childTitle,
-                                    action: (picker) => {
+                                    action: async (picker) => {
+                                        await vscode.commands.executeCommand('xmlya.player.playTrack', entry.childId);
                                         picker.hide();
                                     },
                                 })
@@ -92,6 +94,10 @@ export class Interactor extends Runnable {
                     new QuickPickTreeLeaf(track.trackTitle, {
                         description: track.trackDuration,
                         detail: track.albumName,
+                        action: async (picker) => {
+                            await vscode.commands.executeCommand('xmlya.player.playTrack', track.trackId);
+                            picker.hide();
+                        }
                     })
             ),
             pagination: favorites,
@@ -132,6 +138,10 @@ export class Interactor extends Runnable {
                 (track) =>
                     new QuickPickTreeLeaf(track.title, {
                         description: track.createDateFormat,
+                        action: async (picker) => {
+                            await vscode.commands.executeCommand('xmlya.player.playTrack', track.trackId);
+                            picker.hide();
+                        }
                     })
             ),
             sort,

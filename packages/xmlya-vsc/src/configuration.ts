@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { Logger } from './lib/logger';
 
 // function assertConfValue(x: any, message?: string): asserts x {
 //     if (x === undefined) {
@@ -12,8 +13,8 @@ import * as vscode from 'vscode';
 export class Configuration {
     static get cookie(): string | undefined {
         const ret = vscode.workspace.getConfiguration().get<string>('xmlya.cookie');
-        if (!ret) {
-            vscode.window.showWarningMessage("Please set `xmlya.cookie` to archive best user experience");
+        if (ret === undefined) {
+            Logger.warn('Please set `xmlya.cookie` to archive best user experience');
         }
         return ret;
     }

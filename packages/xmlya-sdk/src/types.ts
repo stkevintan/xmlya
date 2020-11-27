@@ -47,7 +47,7 @@ export interface IHistory {
     uid: number;
     userName: string;
     breakSecond: number;
-    child: number;
+    childId: number;
     childIsVideo: boolean;
     childStatus: number;
     childTitle: string;
@@ -333,6 +333,7 @@ export interface INonFreeTrackAudio {
     buyKey: number;
     duration: number;
     ep: string;
+    src?: string;
     highestQualityLevel: number;
     downloadQualityLevel: number;
     authorizedType: number;

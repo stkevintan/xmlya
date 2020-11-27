@@ -163,7 +163,7 @@ export class QuickPick extends vscode.EventEmitter<CtrlButton> {
     private renderPagination = (options: {
         pagination: IPagination;
         sort?: SortOrder;
-        onPageChange?: IRenderOptions['onSortChange'];
+        onPageChange?: IRenderOptions['onPageChange'];
         onSortChange?: IRenderOptions['onSortChange'];
     }) => {
         const { onPageChange, onSortChange, sort, pagination } = options;

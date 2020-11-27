@@ -93,13 +93,9 @@ export class XmlyaSDK {
         );
     };
 
-    getTrackAudioSrc = async (params: { trackId: number }): Promise<string> => {
-        const audio1 = await this.getTrackAudio(params);
-        if (audio1.src) {
-            return audio1.src;
-        }
-        const audio2 = await this.getNonFreeTrackAudio(params);
-        return await decodeNonFreeAudioSrc(audio2);
+    getNonFreeTrackAudioSrc = async (params: { trackId: number }): Promise<string> => {
+        const audio = await this.getNonFreeTrackAudio(params);
+        return await decodeNonFreeAudioSrc(audio);
     };
 
     getContextTracks = (params: { trackId: number; sort?: SortOrder; size?: number }) => {
