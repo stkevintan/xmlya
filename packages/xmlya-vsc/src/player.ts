@@ -1,74 +1,64 @@
 import * as vscode from 'vscode';
 import { command, Runnable } from './runnable';
-import { AppContext } from './app-context';
+import { ObservableContext } from './lib/context';
 import { IContextTracks, ITrackAudio, XmlyaSDK } from '@xmlya/sdk';
 import { Logger } from './lib/logger';
 import Mpv from 'node-mpv';
 import { Configuration } from './configuration';
-import { App } from './app';
-import { isLazy, Lazy } from './lib';
+import { IStatusBarItemSpec, StatusBar } from './components/status-bar';
 
-interface ICtrlButtonSpec {
-    icon: string;
-    title?: string;
-    when?: (() => boolean) | string;
-    command?: string;
-    args?: any[];
-}
-
-const controllers: (ICtrlButtonSpec | Lazy<ICtrlButtonSpec>)[] = [
-    {
-        title: 'Previous track',
-        icon: '$(chevron-left)',
-        command: 'xmlya.player.goPrev',
-        when: 'player.hasPrev',
-    },
-    {
-        title: 'Next track',
-        icon: '$(chevron-right)',
-        command: 'xmlya.palyer.goNext',
-        when: 'player.hasNext',
-    },
-    {
-        title: 'Play',
-        icon: '$(play)',
-        command: 'xmlya.player.play',
-        when: 'player.isPausing',
-    },
-    {
-        title: 'Pause',
-        icon: '$(debug-pause)',
-        command: 'xmlya.player.pause',
-        when: 'player.isPlaying',
-    },
-    {
-        title: 'Ximalaya',
-        icon: '$(book) 喜马拉雅',
-        command: 'xmlya.user.menu',
-    },
-    () => ({
-        title: 'Volume',
-        icon: `${AppContext.getContext('player.volume') ?? '20'}`,
-        command: 'xmlya.player.loopVolume',
-    }),
-    {
-        title: 'Mute',
-        icon: '$(unmute)',
-        command: 'xmlya.player.toggleMute',
-        args: [true],
-        when: '!player.isMuted',
-    },
-    {
-        title: 'Unmute',
-        icon: '$(mute)',
-        command: 'xmlya.player.toggleMute',
-        args: [false],
-        when: 'player.isMuted',
-    },
-];
+// const statusItems: IStatusBarItemSpec[] = [
+//     {
+//         title: 'Previous track',
+//         icon: '$(chevron-left)',
+//         command: 'xmlya.player.goPrev',
+//         when: 'player.hasPrev',
+//     },
+//     {
+//         title: 'Next track',
+//         icon: '$(chevron-right)',
+//         command: 'xmlya.palyer.goNext',
+//         when: 'player.hasNext',
+//     },
+//     {
+//         title: 'Play',
+//         icon: '$(play)',
+//         command: 'xmlya.player.play',
+//         when: 'player.isPausing',
+//     },
+//     {
+//         title: 'Pause',
+//         icon: '$(debug-pause)',
+//         command: 'xmlya.player.pause',
+//         when: 'player.isPlaying',
+//     },
+//     {
+//         title: 'Ximalaya',
+//         icon: '$(book) 喜马拉雅',
+//         command: 'xmlya.user.menu',
+//     },
+//     () => ({
+//         title: 'Volume',
+//         icon: `${AppContext.getContext('player.volume') ?? '20'}`,
+//         command: 'xmlya.player.loopVolume',
+//     }),
+//     {
+//         title: 'Mute',
+//         icon: '$(unmute)',
+//         command: 'xmlya.player.toggleMute',
+//         args: [true],
+//         when: '!player.isMuted',
+//     },
+//     {
+//         title: 'Unmute',
+//         icon: '$(mute)',
+//         command: 'xmlya.player.toggleMute',
+//         args: [false],
+//         when: 'player.isMuted',
+//     },
+// ];
 
 export class Player extends Runnable {
-    private priBase = 600;
     private subscriptions: vscode.Disposable[] = [];
     private mpv = new Mpv({
         audio_only: true,
@@ -76,39 +66,12 @@ export class Player extends Runnable {
         debug: true,
     });
 
-    private createControllers = (spec: ICtrlButtonSpec | Lazy<ICtrlButtonSpec>): vscode.StatusBarItem => {
-        const btn = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, this.priBase++);
-        this.subscriptions.push(AppContext.onDidContextChange(evaluateWhen));
-        evaluateWhen();
-        this.subscriptions.push(btn);
-        return btn;
-        function evaluateWhen() {
-            const finalSpec = isLazy(spec) ? spec() : spec;
-            btn.text = finalSpec.icon;
-            btn.tooltip = finalSpec.title;
-            btn.command = finalSpec.command;
-            // if no track to be played.
-            // if (AppContext.getContext('player.currentTrack') === undefined) {
-            //     return btn.hide();
-            // }
-
-            if (typeof finalSpec.when === 'function') {
-                return finalSpec.when() ? btn.show() : btn.hide();
-            }
-
-            if (typeof finalSpec.when === 'string') {
-                return AppContext.testExpr(finalSpec.when) ? btn.show() : btn.hide();
-            }
-            btn.show();
-        }
-    };
-
     private _mpvStartingPromise?: Promise<void>;
     private async ensureMpvStarted(): Promise<void> {
         if (this.mpv.isRunning()) return;
         Logger.debug('starting mpv...');
         if (!this._mpvStartingPromise) {
-            this._mpvStartingPromise = this.mpv.start().then(() => this.mpv.adjustVolume(this.volume));
+            this._mpvStartingPromise = this.mpv.start().then(() => this.mpv.volume(this.volume));
         }
         await this._mpvStartingPromise;
         this._mpvStartingPromise = undefined;
@@ -120,6 +83,8 @@ export class Player extends Runnable {
     private playContext?: IContextTracks;
 
     private currentTrack?: ITrackAudio;
+
+    private statusBar: StatusBar = new StatusBar(1000);
 
     get playList() {
         return this.playContext?.tracksAudioPlay ?? [];
@@ -137,7 +102,9 @@ export class Player extends Runnable {
                 this.mpv.stop();
             }
         });
-        AppContext.setContexts({
+        this.initControllers();
+
+        ObservableContext.setContexts({
             'player.isPlaying': false,
             'player.isPausing': false,
             'player.isMuted': false,
@@ -145,8 +112,9 @@ export class Player extends Runnable {
         });
 
         this.ensureMpvStarted();
-        controllers.map(this.createControllers);
     }
+
+    private initControllers() {}
 
     @command('player.playTrack')
     async playTrack(trackId: number) {
@@ -166,7 +134,7 @@ export class Player extends Runnable {
         Logger.debug(this.currentTrack.src);
         await this.ensureMpvStarted();
         await this.mpv.load(this.currentTrack.src, 'replace');
-        AppContext.setContexts({
+        ObservableContext.setContexts({
             'player.isPlaying': true,
             'palyer.isPausing': false,
             'player.currentTrack': trackId,
@@ -176,11 +144,11 @@ export class Player extends Runnable {
     @command('player.play')
     async play() {
         await this.ensureMpvStarted();
-        if (AppContext.getContext('player.isPlaying')) {
+        if (ObservableContext.getContext('player.isPlaying')) {
             return;
         }
         await this.mpv.play();
-        AppContext.setContexts({
+        ObservableContext.setContexts({
             'player.isPlaying': true,
             'player.isPausing': false,
         });
@@ -189,11 +157,11 @@ export class Player extends Runnable {
     @command('player.pause')
     async pause() {
         await this.ensureMpvStarted();
-        if (AppContext.getContext('player.isPausing')) {
+        if (ObservableContext.getContext('player.isPausing')) {
             return;
         }
         await this.mpv.pause();
-        AppContext.setContexts({
+        ObservableContext.setContexts({
             'player.isPlaying': false,
             'player.isPausing': true,
         });
@@ -204,7 +172,7 @@ export class Player extends Runnable {
         await this.ensureMpvStarted();
         isMuted = isMuted ?? !(await this.mpv.isMuted());
         await this.mpv.mute(isMuted);
-        AppContext.setContext('player.isMuted', !isMuted);
+        ObservableContext.setContext('player.isMuted', !isMuted);
     }
 
     @command('player.loopVolume')
@@ -212,6 +180,6 @@ export class Player extends Runnable {
         await this.ensureMpvStarted();
         const volume = (this.volume + 20) % 120;
         await this.mpv.volume(volume);
-        AppContext.setContext('player.volume', (this.volume = volume));
+        ObservableContext.setContext('player.volume', (this.volume = volume));
     }
 }

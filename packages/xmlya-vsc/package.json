@@ -136,6 +136,7 @@
         "@xmlya/sdk": "^1.0.0",
         "node-mpv": "^2.0.0-beta.1",
         "reflect-metadata": "^0.1.13",
+        "ts-debounce": "^2.0.1",
         "vscode-test": "^1.4.1"
     }
 }
