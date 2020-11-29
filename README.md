@@ -8,6 +8,6 @@ A project about Ximalaya(喜马拉雅) FM:
 
 ## Screenshots
 
-[quick-pick](https://github.com/stkevintan/xmlya/blob/master/images/quickpick.png?raw=true)
+![quick-pick](https://github.com/stkevintan/xmlya/blob/master/images/quickpick.png?raw=true)
 
-[status-bar](https://github.com/stkevintan/xmlya/blob/master/images/statusbar.png?raw=true)
+![status-bar](https://github.com/stkevintan/xmlya/blob/master/images/statusbar.png?raw=true)
