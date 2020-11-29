@@ -5,5 +5,3 @@ export function activate(context: vscode.ExtensionContext) {
     const app = new App(context);
     app.run();
 }
-
-export function deactivate() {}

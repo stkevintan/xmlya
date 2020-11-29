@@ -1,5 +1,7 @@
 export const IndentChars = '\u2003\u2005';
 
+export const NA = 'N/A';
+
 export const ToggleOnIcon = 'chevron-down';
 export const ToggleOffIcon = 'chevron-right';
 

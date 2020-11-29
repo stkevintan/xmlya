@@ -5,7 +5,6 @@
         "start": "./scripts/yarnRun.ps1 -Parallel start"
     },
     "workspaces": [
-        "packages/xmlya-sdk",
-        "packages/xmlya-vsc"
+        "packages/*"
     ]
 }

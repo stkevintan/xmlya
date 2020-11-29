@@ -1,22 +1,28 @@
-import { ObservableContext } from 'src/lib/context';
-import { Func, Lazy } from 'src/lib';
+import { Func, RuntimeContext } from 'src/lib';
 import { Logger } from 'src/lib/logger';
-import { debounce } from 'ts-debounce';
 import * as vscode from 'vscode';
 
-export interface IStatusBarItemSpec extends Omit<vscode.StatusBarItem, 'show' | 'hide' | 'priority'> {
-    when?: string | Func<[ObservableContext], boolean>;
-    // onChange?: ()
+export type When = string | Func<[RuntimeContext], boolean>;
+export interface IStatusBarItemSpec {
+    key: string;
+    alignment?: vscode.StatusBarAlignment;
+    text: string;
+    tooltip?: string;
+    color?: string | vscode.ThemeColor;
+    command?: string | vscode.Command | undefined;
+    accessibilityInformation?: vscode.AccessibilityInformation;
+    when?: When;
 }
 
 export class StatusBar extends vscode.Disposable {
     // map is ordered.
-    private itemMap = new Map<string, [vscode.StatusBarItem, IStatusBarItemSpec['when']]>();
+    private itemMap = new Map<string, vscode.StatusBarItem>();
+    private specMap = new WeakMap<vscode.StatusBarItem, IStatusBarItemSpec>();
 
-    constructor(private priorityBase: number) {
+    constructor(private ctx: RuntimeContext, private priorityBase: number) {
         super(() => {
             disposable?.dispose();
-            this.itemMap.forEach((value) => value[0].dispose());
+            vscode.Disposable.from(disposable, ...this.itemMap.values());
         });
 
         const disposable = this.subscribeToContext();
@@ -29,34 +35,47 @@ export class StatusBar extends vscode.Disposable {
             spec.alignment || vscode.StatusBarAlignment.Right,
             this.priorityBase + this.itemMap.size
         );
-        this.itemMap.set(key, [btn, spec.when]);
-
-        btn.text = spec.text;
+        btn.text = this.parseTemplate(spec.text);
         btn.tooltip = spec.tooltip;
         btn.color = spec.color;
         btn.command = spec.command;
         btn[this.evalWhen(spec.when) ? 'show' : 'hide']();
+        this.specMap.set(btn, spec);
+        this.itemMap.set(key, btn);
     };
 
-    private evalWhen(when: IStatusBarItemSpec['when']): boolean {
+    private parseTemplate(text: string) {
+        return text.replace(/\{[\w.]+\}/g, (expr) => {
+            const key = expr.slice(1, expr.length - 1);
+            const val = this.ctx.get<any>(key);
+            if (val !== undefined) {
+                return val;
+            }
+            return expr;
+        });
+    }
+
+    private evalWhen(when?: When): boolean {
         if (typeof when === 'function') {
-            return when(ObservableContext);
+            return when(this.ctx);
         }
 
         if (typeof when === 'string') {
-            return ObservableContext.testExpr(when);
+            return this.ctx.testExpr(when);
         }
         return true;
     }
 
     private subscribeToContext(): vscode.Disposable {
-        return ObservableContext.onDidContextChange(
-            debounce(() => {
-                for (const [item, when] of this.itemMap.values()) {
-                    this.evalWhen(when) ? item.show() : item.hide();
+        return this.ctx.onChange(() => {
+            for (const item of this.itemMap.values()) {
+                const additional = this.specMap.get(item);
+                if (additional?.text) {
+                    item.text = this.parseTemplate(additional.text);
                 }
-            })
-        );
+                this.evalWhen(additional?.when) ? item.show() : item.hide();
+            }
+        }, 50);
     }
 
     updateItem = (
@@ -71,7 +90,14 @@ export class StatusBar extends vscode.Disposable {
         if (!this.itemMap.has(key)) {
             return;
         }
-        const [btn] = this.itemMap.get(key)!;
+        const btn = this.itemMap.get(key)!;
         Object.assign(btn, payload);
+        if (payload.text) {
+            const spec = this.specMap.get(btn);
+            if (spec) {
+                Object.assign(spec, payload);
+            }
+            btn.text = this.parseTemplate(payload.text);
+        }
     };
 }

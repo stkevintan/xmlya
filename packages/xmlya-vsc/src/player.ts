@@ -1,90 +1,106 @@
 import * as vscode from 'vscode';
 import { command, Runnable } from './runnable';
-import { ObservableContext } from './lib/context';
 import { IContextTracks, ITrackAudio, XmlyaSDK } from '@xmlya/sdk';
 import { Logger } from './lib/logger';
-import Mpv from 'node-mpv';
 import { Configuration } from './configuration';
 import { IStatusBarItemSpec, StatusBar } from './components/status-bar';
+import { Action, NA, RuntimeContext } from './lib';
+import { Mpv } from '@xmlya/mpv';
+import { QuickPick, QuickPickTreeLeaf } from './components/quick-pick';
+import { timeStamp } from 'console';
 
-// const statusItems: IStatusBarItemSpec[] = [
-//     {
-//         title: 'Previous track',
-//         icon: '$(chevron-left)',
-//         command: 'xmlya.player.goPrev',
-//         when: 'player.hasPrev',
-//     },
-//     {
-//         title: 'Next track',
-//         icon: '$(chevron-right)',
-//         command: 'xmlya.palyer.goNext',
-//         when: 'player.hasNext',
-//     },
-//     {
-//         title: 'Play',
-//         icon: '$(play)',
-//         command: 'xmlya.player.play',
-//         when: 'player.isPausing',
-//     },
-//     {
-//         title: 'Pause',
-//         icon: '$(debug-pause)',
-//         command: 'xmlya.player.pause',
-//         when: 'player.isPlaying',
-//     },
-//     {
-//         title: 'Ximalaya',
-//         icon: '$(book) 喜马拉雅',
-//         command: 'xmlya.user.menu',
-//     },
-//     () => ({
-//         title: 'Volume',
-//         icon: `${AppContext.getContext('player.volume') ?? '20'}`,
-//         command: 'xmlya.player.loopVolume',
-//     }),
-//     {
-//         title: 'Mute',
-//         icon: '$(unmute)',
-//         command: 'xmlya.player.toggleMute',
-//         args: [true],
-//         when: '!player.isMuted',
-//     },
-//     {
-//         title: 'Unmute',
-//         icon: '$(mute)',
-//         command: 'xmlya.player.toggleMute',
-//         args: [false],
-//         when: 'player.isMuted',
-//     },
-// ];
+// from right to left
+const statusItems: IStatusBarItemSpec[] = [
+    {
+        key: 'menu',
+        tooltip: 'Ximalaya',
+        text: '$(broadcast)',
+        command: 'xmlya.user.menu',
+    },
+
+    {
+        key: 'next',
+        tooltip: 'Next track',
+        text: '$(chevron-right)',
+        command: 'xmlya.player.goNext',
+        when: 'player.hasNext',
+    },
+    {
+        key: 'play',
+        tooltip: 'Play',
+        text: '$(play)',
+        command: 'xmlya.player.play',
+        when: (ctx) => ctx.get('player.readyState') === 'paused',
+    },
+    {
+        key: 'pause',
+        tooltip: 'Pause',
+        text: '$(debug-pause)',
+        command: 'xmlya.player.pause',
+        when: (ctx) => ctx.get('player.readyState') === 'playing',
+    },
+    // {
+    //     key: 'idle',
+    //     tooltip: 'No track',
+    //     text: '$(primitive-square)',
+    //     color: 'rgba(255,255,255,0.5)',
+    //     when: (ctx) => ctx.get('player.readyState') === 'idle',
+    // },
+    {
+        key: 'loading',
+        tooltip: 'Loading',
+        text: '$(loading)',
+        when: (ctx) => ['seeking', 'loading'].includes(ctx.get('player.readyState') ?? ''),
+    },
+    {
+        key: 'prev',
+        tooltip: 'Previous track',
+        text: '$(chevron-left)',
+        command: 'xmlya.player.goPrev',
+        when: 'player.hasPrev',
+    },
+    {
+        key: 'volume',
+        tooltip: 'Volume',
+        text: `{player.volume}`,
+        command: 'xmlya.player.loopVolume',
+        when: (ctx) => ctx.get('player.readyState') !== 'unload',
+    },
+    {
+        key: 'mute',
+        tooltip: 'Mute',
+        text: '$(unmute)',
+        command: { command: 'xmlya.player.toggleMute', arguments: [true], title: 'mute' },
+        when: '!player.isMuted',
+    },
+    {
+        key: 'unmute',
+        tooltip: 'Unmute',
+        text: '$(mute)',
+        command: { command: 'xmlya.player.toggleMute', title: 'unmute', arguments: [false] },
+        when: 'player.isMuted',
+    },
+    {
+        key: 'track',
+        tooltip: 'track info',
+        text: '{player.trackTitle}',
+        command: 'xmlya.player.trackInfo',
+        when: (ctx) => ['playing', 'paused'].includes(ctx.get('player.readyState') ?? ''),
+    },
+];
 
 export class Player extends Runnable {
     private subscriptions: vscode.Disposable[] = [];
-    private mpv = new Mpv({
-        audio_only: true,
-        binary: Configuration.mpvBinary,
-        debug: true,
-    });
-
-    private _mpvStartingPromise?: Promise<void>;
-    private async ensureMpvStarted(): Promise<void> {
-        if (this.mpv.isRunning()) return;
-        Logger.debug('starting mpv...');
-        if (!this._mpvStartingPromise) {
-            this._mpvStartingPromise = this.mpv.start().then(() => this.mpv.volume(this.volume));
-        }
-        await this._mpvStartingPromise;
-        this._mpvStartingPromise = undefined;
-        Logger.debug('mpv started');
-    }
-
-    private volume: number = 20;
 
     private playContext?: IContextTracks;
 
     private currentTrack?: ITrackAudio;
 
-    private statusBar: StatusBar = new StatusBar(1000);
+    private mpv: Mpv;
+
+    private statusBar: StatusBar;
+    private ctx: RuntimeContext;
+    private progressResover?: Action;
 
     get playList() {
         return this.playContext?.tracksAudioPlay ?? [];
@@ -97,34 +113,100 @@ export class Player extends Runnable {
 
     constructor(private sdk: XmlyaSDK) {
         super(() => {
-            this.subscriptions.forEach((sub) => sub.dispose());
-            if (this.mpv.isRunning()) {
-                this.mpv.stop();
-            }
+            this.progressResover?.();
+            vscode.Disposable.from(...this.subscriptions, this.ctx).dispose();
+        }, true);
+        this.mpv = new Mpv({
+            mpvBinary: Configuration.mpvBinary,
+            logLevel: 'debug',
+            logger: console.log,
         });
-        this.initControllers();
 
-        ObservableContext.setContexts({
-            'player.isPlaying': false,
-            'player.isPausing': false,
+        this.ctx = new RuntimeContext({
+            'player.readyState': 'unload',
             'player.isMuted': false,
-            'player.volume': this.volume,
+            'player.hasNext': false,
+            'player.hasPrev': false,
+            'player.volume': NA,
+            'player.trackTitle': NA,
         });
-
-        this.ensureMpvStarted();
+        this.statusBar = new StatusBar(this.ctx, 1024);
+        this.initControllers();
+        this.syncContext();
     }
 
-    private initControllers() {}
+    private initControllers() {
+        for (const item of statusItems) {
+            this.statusBar.addItem(item.key, item);
+        }
+    }
 
-    @command('player.playTrack')
-    async playTrack(trackId: number) {
-        if (trackId === undefined) return;
-        [this.playContext, this.currentTrack] = await Promise.all([
-            this.sdk.getContextTracks({ trackId }),
-            this.sdk.getTrackAudio({ trackId }),
-        ]);
+    private syncContext() {
+        return vscode.Disposable.from(
+            this.mpv.watchProp<boolean>('core-idle', (active) => {
+                if (!active) this.ctx.set('player.readyState', 'playing');
+            }),
+            this.mpv.watchProp<boolean>('idle-active', (active) => {
+                if (active) this.ctx.set('player.readyState', 'idle');
+            }),
+            this.mpv.watchProp<boolean>('mute', (mute) => {
+                this.ctx.set('player.isMuted', !!mute);
+            }),
+
+            this.mpv.watchProp<boolean>('seek', (seeking) => {
+                if (seeking) this.ctx.set('player.readyState', 'seeking');
+            }),
+            this.mpv.watchProp<number>('volume', (volume) => {
+                this.ctx.set('player.volume', volume);
+            }),
+            this.mpv.onEvent(({ event, ...data }) => {
+                switch (event) {
+                    case 'start-file':
+                        this.ctx.set('player.readyState', 'loading');
+                        break;
+                    case 'pause':
+                        this.ctx.set('player.readyState', 'paused');
+                        break;
+                    case 'end-file':
+                        if (['error', 'unknown'].includes(data.reason)) {
+                            this.ctx.set('player.readyState', 'error');
+                        } else if (data.reason === 'quit') {
+                            this.ctx.set('plyaer.readyState', 'unload');
+                        }
+                        break;
+                }
+            })
+        );
+    }
+
+    // async playTrackCMD(trackId?: number, albumId?: number) {
+    //     if (this.busy) return;
+    //     if (trackId !== undefined && albumId !== undefined) {
+    //         this.setBusy(true, '')
+    //         await this.playTrack(trackId, albumId);
+    //     }
+    // }
+
+    @command('player.playTrack', 'Loading track...')
+    async playTrack(trackId: number, albumId: number) {
+        if (trackId === undefined || albumId === undefined) return;
+        if (this.playContext === undefined || this.trackInfo?.albumId !== albumId) {
+            this.playContext = await this.sdk.getContextTracks({ trackId });
+        }
+        this.currentTrack = await this.sdk.getTrackAudio({ trackId });
 
         Logger.assert(this.currentTrack, 'No track to play.');
+        const index = this.playList.findIndex((item) => item.trackId === this.currentTrack?.trackId);
+
+        if (index !== -1) {
+            this.ctx.set('player.hasPrev', index > 0);
+            this.ctx.set('player.hasNext', index < this.playList.length - 1 || this.playContext.hasMore);
+        } else {
+            this.ctx.set('player.hasPrev', false);
+            this.ctx.set('player.hasnext', false);
+        }
+        this.ctx.set('player.trackTitle', this.trackInfo?.trackName ?? NA);
+
         if (!this.currentTrack.src) {
             Logger.assertTrue(this.currentTrack.canPlay, `Track ${this.trackInfo?.trackName} is not playable.`);
             this.currentTrack.src = await this.sdk.getNonFreeTrackAudioSrc({ trackId: this.currentTrack.trackId });
@@ -132,54 +214,66 @@ export class Player extends Runnable {
 
         Logger.assert(this.currentTrack.src, 'Get audio source failed');
         Logger.debug(this.currentTrack.src);
-        await this.ensureMpvStarted();
-        await this.mpv.load(this.currentTrack.src, 'replace');
-        ObservableContext.setContexts({
-            'player.isPlaying': true,
-            'palyer.isPausing': false,
-            'player.currentTrack': trackId,
-        });
+        await this.mpv.play(this.currentTrack.src);
     }
 
     @command('player.play')
     async play() {
-        await this.ensureMpvStarted();
-        if (ObservableContext.getContext('player.isPlaying')) {
-            return;
-        }
         await this.mpv.play();
-        ObservableContext.setContexts({
-            'player.isPlaying': true,
-            'player.isPausing': false,
-        });
     }
 
     @command('player.pause')
     async pause() {
-        await this.ensureMpvStarted();
-        if (ObservableContext.getContext('player.isPausing')) {
-            return;
-        }
         await this.mpv.pause();
-        ObservableContext.setContexts({
-            'player.isPlaying': false,
-            'player.isPausing': true,
-        });
     }
 
     @command('player.toggleMute')
-    async toggleMute(isMuted?: boolean) {
-        await this.ensureMpvStarted();
-        isMuted = isMuted ?? !(await this.mpv.isMuted());
-        await this.mpv.mute(isMuted);
-        ObservableContext.setContext('player.isMuted', !isMuted);
+    async toggleMute(on?: boolean) {
+        await this.mpv.toggleMute(on);
     }
 
     @command('player.loopVolume')
     async loopVolume() {
-        await this.ensureMpvStarted();
-        const volume = (this.volume + 20) % 120;
-        await this.mpv.volume(volume);
-        ObservableContext.setContext('player.volume', (this.volume = volume));
+        const volume = this.ctx.get<string | number>('player.volume');
+        if (typeof volume === 'number') {
+            this.mpv.setVolume((volume + 20) % 120);
+        }
+    }
+
+    @command('player.trackInfo')
+    showTrackInfo() {
+        const { trackInfo } = this;
+        if (trackInfo === undefined) {
+            vscode.window.showErrorMessage('No track info found.');
+        }
+        const quickPick = new QuickPick();
+        quickPick.render('Track Info', [
+            new QuickPickTreeLeaf(`Track Name: ${trackInfo?.trackName}`),
+            new QuickPickTreeLeaf(`Album Name: ${trackInfo?.albumName}`),
+            new QuickPickTreeLeaf(`Update time: ${trackInfo?.updateTime}`),
+            new QuickPickTreeLeaf(`Duration: ${trackInfo?.duration}`),
+        ]);
+        quickPick.onDidHide(() => quickPick.dispose());
+    }
+
+    @command('player.goNext', 'Loading next track...')
+    async goNext() {
+        const index = this.playList.findIndex((item) => item.trackId === this.currentTrack?.trackId);
+        if (index < this.playList.length - 1) {
+            const nextTrack = this.playList[index + 1];
+            await this.playTrack(nextTrack.trackId, nextTrack.albumId);
+        } else if (this.playContext?.hasMore) {
+            this.playContext = await this.sdk.getContextTracks({ trackId: this.currentTrack!.trackId });
+            await this.goNext();
+        }
+    }
+
+    @command('player.goPrev', 'Loading previous track...')
+    async goPrev() {
+        const index = this.playList.findIndex((item) => item.trackId === this.currentTrack?.trackId);
+        if (index > 0) {
+            const prevTrack = this.playList[index - 1];
+            await this.playTrack(prevTrack.trackId, prevTrack.albumId);
+        }
     }
 }

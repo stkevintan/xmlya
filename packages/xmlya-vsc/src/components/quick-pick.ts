@@ -1,5 +1,5 @@
 import { IPagination, SortOrder } from '@xmlya/sdk';
-import { leftPad } from 'src/lib';
+import { Callback, leftPad } from 'src/lib';
 import { ToggleOnIcon, ToggleOffIcon, PrevPageIcon, NextPageIcon, AscOrderIcon, DescOrderIcon } from 'src/lib/constant';
 import * as vscode from 'vscode';
 
@@ -159,6 +159,8 @@ export class QuickPick extends vscode.EventEmitter<CtrlButton> {
         this.quickPick.items = this.flattenTree(items);
         this.quickPick.show();
     }
+
+    onDidHide = (cb: Callback<void>) => this.quickPick.onDidHide(cb);
 
     private renderPagination = (options: {
         pagination: IPagination;

@@ -1,46 +1,55 @@
 import path from 'path';
-import { Disposable } from 'vscode';
-import { Callback, Defer, noop } from '../common';
-import { isResultReply, MpvClient } from './client';
+import { Defer } from './common';
+import { LibMpv } from './libmpv';
+import { Logger, LogLevel } from './logger';
+import { ILibMpvOptions } from './types';
 
-export class Mpv extends MpvClient {
+
+export interface IMpvOptions extends ILibMpvOptions {
+    logger?: (...args: any) => void;
+    /**
+     * default to info
+     */
+    logLevel?: LogLevel;
+}
+
+export class Mpv extends LibMpv {
+    constructor(options: IMpvOptions) {
+        super(options);
+        Logger.logger = options.logger;
+        Logger.Level = options.logLevel ?? 'info';
+    }
     /**
      * load source in timeout millionseconds
      * @param source
      * @param timeout
      */
-    async play(source: string, timeout = 10 * 1000) {
+    async play(): Promise<void>;
+    async play(source: string, timeout?: number): Promise<void>;
+    async play(source?: string, timeout?: number): Promise<void> {
+        if (source === undefined) {
+            return await this.setProp('pause', false);
+        }
         if (!source.startsWith('http')) {
             source = path.resolve(source);
         }
-        await this.exec('loadfile', source);
         // wait for file loaded
         const defer = new Defer(timeout, () => {
             handle.dispose();
         });
-
+        
         let started = false;
-        const handle = this.replies$.event((reply) => {
-            if (isResultReply(reply)) {
-                return;
-            }
-            if (reply.event === 'start-file') {
+        const handle = this.onEvent(({ event }) => {
+            if (event === 'start-file') {
                 started = true;
-                return;
-            }
-            if (!started) return;
-
-            switch (reply.event) {
-                case 'file-loaded':
-                    handle.dispose();
-                    defer.resolve();
-                    break;
-                case 'end-file':
-                    defer.reject('file load error');
-                    break;
+            } else if (started && event === 'file-loaded') {
+                defer.resolve();
+                handle.dispose();
+            } else if (started && event === 'end-file') {
+                defer.reject('file load error');
             }
         });
-
+        await this.exec('loadfile', source);
         await defer.asPromise();
     }
 
@@ -108,21 +117,45 @@ export class Mpv extends MpvClient {
     }
 
     /**
+     * get time position in seconds
+     */
+    async getTimePos(): Promise<number> {
+        return await this.getProp('time-pos');
+    }
+
+    /**
+     * duration of current file. may be NaN if duration is unknown
+     */
+    async getDuration(): Promise<number> {
+        return await this.getProp('duration').catch(() => null);
+    }
+
+    /**
+     * estimate remaining time in seconds
+     */
+    async getTimeRemaining(): Promise<number> {
+        return await this.getProp('time-remaining');
+    }
+
+    /**
+     * get percent of current position, returned as a number between 0 , 100
+     */
+    async getPercentPosition(): Promise<number> {
+        return await this.getProp('percent-pos');
+    }
+
+    /**
      * exactly seek, when mode is relative-*, pos can be negative.
      * @param pos seconds or percent
      * @param mode
      */
     async seek(pos: number, mode: 'relative' | 'absolute' | 'absolute-percent' | 'relative-percent' = 'relative') {
-        const defer = new Defer(() => {
-            handle.dispose();
-        });
+        const defer = new Defer(() => handle.dispose());
         let started = false;
-        const handle = this.replies$.event((reply) => {
-            if (isResultReply(reply)) return;
-            if (reply.event === 'seek') {
+        const handle = this.onEvent(({ event }) => {
+            if (event === 'seek') {
                 started = true;
-            }
-            if (started && reply.event === 'playback-restart') {
+            } else if (started && event === 'playback-restart') {
                 handle.dispose();
                 defer.resolve();
             }

@@ -53,7 +53,11 @@ export class Interactor extends Runnable {
                                     description: entry.startedAtFormatText,
                                     detail: entry.childTitle,
                                     action: async (picker) => {
-                                        await vscode.commands.executeCommand('xmlya.player.playTrack', entry.childId);
+                                        await vscode.commands.executeCommand(
+                                            'xmlya.player.playTrack',
+                                            entry.childId,
+                                            entry.itemId
+                                        );
                                         picker.hide();
                                     },
                                 })
@@ -95,9 +99,9 @@ export class Interactor extends Runnable {
                         description: track.trackDuration,
                         detail: track.albumName,
                         action: async (picker) => {
-                            await vscode.commands.executeCommand('xmlya.player.playTrack', track.trackId);
+                            vscode.commands.executeCommand('xmlya.player.playTrack', track.trackId);
                             picker.hide();
-                        }
+                        },
                     })
             ),
             pagination: favorites,
@@ -139,9 +143,9 @@ export class Interactor extends Runnable {
                     new QuickPickTreeLeaf(track.title, {
                         description: track.createDateFormat,
                         action: async (picker) => {
-                            await vscode.commands.executeCommand('xmlya.player.playTrack', track.trackId);
+                            vscode.commands.executeCommand('xmlya.player.playTrack', track.trackId, album.id);
                             picker.hide();
-                        }
+                        },
                     })
             ),
             sort,
