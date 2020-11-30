@@ -7,9 +7,14 @@ import { IStatusBarItemSpec, StatusBar } from './components/status-bar';
 import { Action, NA, RuntimeContext } from './lib';
 import { Mpv } from '@xmlya/mpv';
 import { QuickPick, QuickPickTreeLeaf } from './components/quick-pick';
-import { timeStamp } from 'console';
 
 const statusItems: IStatusBarItemSpec[] = [
+    {
+        key: 'menu',
+        tooltip: 'Ximalaya',
+        text: '$(broadcast)',
+        command: 'xmlya.user.menu',
+    },
     {
         key: 'track',
         tooltip: 'track info',
@@ -78,12 +83,6 @@ const statusItems: IStatusBarItemSpec[] = [
         text: '{player.speed} X',
         command: 'xmlya.player.setSpeed',
         when: (ctx) => ctx.get('player.readyState') !== 'unload',
-    },
-    {
-        key: 'menu',
-        tooltip: 'Ximalaya',
-        text: '$(broadcast)',
-        command: 'xmlya.user.menu',
     },
 ];
 
