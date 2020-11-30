@@ -1,9 +1,12 @@
 import { debounce } from 'ts-debounce';
 import { Disposable, EventEmitter } from 'vscode';
+import { Func } from './common';
+
+export type When = string | Func<[RuntimeContext], boolean>;
 
 function checkKey(key: string) {
     if (!key) throw new Error('key should not be empty or null.');
-    if (/[^\w.]/.test(key)) throw new Error(`key "${key}" is invalid, only [a-zA-Z_.] are allowed`);
+    if (/[^\w.'"]/.test(key)) throw new Error(`key "${key}" is invalid, only [a-zA-Z_.'"] are allowed`);
 }
 export class RuntimeContext {
     private store: Record<string, any> = {};
@@ -56,15 +59,30 @@ export class RuntimeContext {
         return this.store[key];
     }
 
-    // TODO: need a more normal implement
-    testExpr(str: string): boolean {
-        return eval(str.replace(/[\w.]+/g, (expr) => (this.store[expr] ? 'true' : 'false')));
-        // if (this.store[str]) return !!this.store[str];
-        // if (str.startsWith('!')) {
-        //     const expr = str.substr(1);
-        //     return !this.store[expr];
-        // }
-        // return false;
+    private contextMatchesRules(rules: string): boolean {
+        throw new Error('Method not implement');
+    }
+
+    testWhen(when?: When): boolean {
+        if (typeof when === 'function') {
+            return when(this);
+        }
+
+        if (typeof when === 'string') {
+            return this.contextMatchesRules(when);
+        }
+        return true;
+    }
+
+    parseString(text: string): string {
+        return text.replace(/\{[\w.]+\}/g, (expr) => {
+            const key = expr.slice(1, expr.length - 1);
+            const val = this.get<any>(key);
+            if (val !== undefined) {
+                return val;
+            }
+            return expr;
+        });
     }
 
     delete(key: string) {
