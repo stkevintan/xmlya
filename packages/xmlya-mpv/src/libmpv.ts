@@ -50,6 +50,23 @@ export class LibMpv extends Disposable {
         return process.platform === 'win32' ? `\\\\.\\pipe\\mpvserver-${id}` : `/tmp/node-mpv-${id}.sock`;
     }
 
+    private otherArgs() {
+        const ret: string[] = [];
+        const { volume, mute, speed } = this.options;
+        if (typeof volume === 'number' && volume >= 0 && volume <= 100) {
+            ret.push(`--volume=${volume}`);
+        }
+
+        if (typeof mute === 'boolean') {
+            ret.push(`--mute=${mute ? 'yes' : 'no'}`);
+        }
+
+        if (typeof speed === 'number' && speed >= 0.01 && speed <= 100) {
+            ret.push(`--speed=${speed}`);
+        }
+        return ret;
+    }
+
     constructor(private options: ILibMpvOptions = {}) {
         super(() => {
             this.replies$.dispose();
@@ -122,6 +139,7 @@ export class LibMpv extends Disposable {
         const combinedArguments = uniqArguments([
             `--input-ipc-server=${this.socketPath}`,
             ...baseArguments,
+            ...this.otherArgs(),
             ...(this.options.args ?? []),
         ]);
 

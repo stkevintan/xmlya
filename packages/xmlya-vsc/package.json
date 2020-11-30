@@ -101,6 +101,11 @@
                 "title": "Show current track info",
                 "command": "xmlya.player.trackInfo",
                 "category": "Ximalaya"
+            },
+            {
+                "title": "Set playback speed",
+                "command": "xmlya.player.setSpeed",
+                "category": "Ximalaya"
             }
         ],
         "menus": {}

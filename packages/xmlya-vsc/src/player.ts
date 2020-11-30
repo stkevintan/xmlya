@@ -9,69 +9,13 @@ import { Mpv } from '@xmlya/mpv';
 import { QuickPick, QuickPickTreeLeaf } from './components/quick-pick';
 import { timeStamp } from 'console';
 
-// from right to left
 const statusItems: IStatusBarItemSpec[] = [
     {
-        key: 'menu',
-        tooltip: 'Ximalaya',
-        text: '$(broadcast)',
-        command: 'xmlya.user.menu',
-    },
-
-    {
-        key: 'next',
-        tooltip: 'Next track',
-        text: '$(chevron-right)',
-        command: 'xmlya.player.goNext',
-        when: 'player.hasNext',
-    },
-    {
-        key: 'play',
-        tooltip: 'Play',
-        text: '$(play)',
-        command: 'xmlya.player.play',
-        when: (ctx) => ctx.get('player.readyState') === 'paused',
-    },
-    {
-        key: 'pause',
-        tooltip: 'Pause',
-        text: '$(debug-pause)',
-        command: 'xmlya.player.pause',
-        when: (ctx) => ctx.get('player.readyState') === 'playing',
-    },
-    // {
-    //     key: 'idle',
-    //     tooltip: 'No track',
-    //     text: '$(primitive-square)',
-    //     color: 'rgba(255,255,255,0.5)',
-    //     when: (ctx) => ctx.get('player.readyState') === 'idle',
-    // },
-    {
-        key: 'loading',
-        tooltip: 'Loading',
-        text: '$(loading)',
-        when: (ctx) => ['seeking', 'loading'].includes(ctx.get('player.readyState') ?? ''),
-    },
-    {
-        key: 'prev',
-        tooltip: 'Previous track',
-        text: '$(chevron-left)',
-        command: 'xmlya.player.goPrev',
-        when: 'player.hasPrev',
-    },
-    {
-        key: 'volume',
-        tooltip: 'Volume',
-        text: `{player.volume}`,
-        command: 'xmlya.player.loopVolume',
-        when: (ctx) => ctx.get('player.readyState') !== 'unload',
-    },
-    {
-        key: 'mute',
-        tooltip: 'Mute',
-        text: '$(unmute)',
-        command: { command: 'xmlya.player.toggleMute', arguments: [true], title: 'mute' },
-        when: '!player.isMuted',
+        key: 'track',
+        tooltip: 'track info',
+        text: '{player.trackTitle}',
+        command: 'xmlya.player.trackInfo',
+        when: (ctx) => ['playing', 'paused'].includes(ctx.get('player.readyState') ?? ''),
     },
     {
         key: 'unmute',
@@ -81,11 +25,65 @@ const statusItems: IStatusBarItemSpec[] = [
         when: 'player.isMuted',
     },
     {
-        key: 'track',
-        tooltip: 'track info',
-        text: '{player.trackTitle}',
-        command: 'xmlya.player.trackInfo',
-        when: (ctx) => ['playing', 'paused'].includes(ctx.get('player.readyState') ?? ''),
+        key: 'mute',
+        tooltip: 'Mute',
+        text: '$(unmute)',
+        command: { command: 'xmlya.player.toggleMute', arguments: [true], title: 'mute' },
+        when: '!player.isMuted',
+    },
+    {
+        key: 'volume',
+        tooltip: 'Volume',
+        text: `{player.volume}`,
+        command: 'xmlya.player.loopVolume',
+        when: (ctx) => ctx.get('player.readyState') !== 'unload',
+    },
+    {
+        key: 'prev',
+        tooltip: 'Previous track',
+        text: '$(chevron-left)',
+        command: 'xmlya.player.goPrev',
+        when: 'player.hasPrev',
+    },
+    {
+        key: 'loading',
+        tooltip: 'Loading',
+        text: '$(loading)',
+        when: (ctx) => ['seeking', 'loading'].includes(ctx.get('player.readyState') ?? ''),
+    },
+    {
+        key: 'pause',
+        tooltip: 'Pause',
+        text: '$(debug-pause)',
+        command: 'xmlya.player.pause',
+        when: (ctx) => ctx.get('player.readyState') === 'playing',
+    },
+    {
+        key: 'play',
+        tooltip: 'Play',
+        text: '$(play)',
+        command: 'xmlya.player.play',
+        when: (ctx) => ctx.get('player.readyState') === 'paused',
+    },
+    {
+        key: 'next',
+        tooltip: 'Next track',
+        text: '$(chevron-right)',
+        command: 'xmlya.player.goNext',
+        when: 'player.hasNext',
+    },
+    {
+        key: 'speed',
+        tooltip: 'Set playback speed',
+        text: '{player.speed} X',
+        command: 'xmlya.player.setSpeed',
+        when: (ctx) => ctx.get('player.readyState') !== 'unload',
+    },
+    {
+        key: 'menu',
+        tooltip: 'Ximalaya',
+        text: '$(broadcast)',
+        command: 'xmlya.user.menu',
     },
 ];
 
@@ -130,6 +128,7 @@ export class Player extends Runnable {
             'player.hasPrev': false,
             'player.volume': NA,
             'player.trackTitle': NA,
+            'player.speed': NA,
         });
         this.statusBar = new StatusBar(this.ctx, 1024);
         this.initControllers();
@@ -137,7 +136,7 @@ export class Player extends Runnable {
     }
 
     private initControllers() {
-        for (const item of statusItems) {
+        for (const item of statusItems.reverse()) {
             this.statusBar.addItem(item.key, item);
         }
     }
@@ -159,6 +158,9 @@ export class Player extends Runnable {
             }),
             this.mpv.watchProp<number>('volume', (volume) => {
                 this.ctx.set('player.volume', volume);
+            }),
+            this.mpv.watchProp<number>('speed', (speed) => {
+                this.ctx.set('player.speed', speed);
             }),
             this.mpv.onEvent(({ event, ...data }) => {
                 switch (event) {
@@ -209,7 +211,6 @@ export class Player extends Runnable {
         }
 
         Logger.assert(this.currentTrack.src, 'Get audio source failed');
-        Logger.debug(this.currentTrack.src);
         await this.mpv.play(this.currentTrack.src);
     }
 
@@ -244,11 +245,34 @@ export class Player extends Runnable {
         }
         const quickPick = new QuickPick();
         quickPick.render('Track Info', [
-            new QuickPickTreeLeaf(`Track Name  : ${trackInfo?.trackName}`),
-            new QuickPickTreeLeaf(`Album Name  : ${trackInfo?.albumName}`),
-            new QuickPickTreeLeaf(`Update time : ${trackInfo?.updateTime}`),
-            new QuickPickTreeLeaf(`Duration    : ${trackInfo?.duration}`),
+            new QuickPickTreeLeaf(`Track Name: ${trackInfo?.trackName ?? NA}`),
+            new QuickPickTreeLeaf(`Album Name: ${trackInfo?.albumName ?? NA}`),
+            new QuickPickTreeLeaf(`Update time: ${trackInfo?.updateTime ?? NA}`),
+            new QuickPickTreeLeaf(`Duration: ${trackInfo?.duration ?? NA}`),
+            new QuickPickTreeLeaf(`Play Source: ${this.currentTrack?.src ?? NA}`),
         ]);
+        quickPick.onDidHide(() => quickPick.dispose());
+    }
+
+    @command('player.setSpeed')
+    setSpeed() {
+        const quickPick = new QuickPick();
+        const choices = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+        quickPick.render(
+            'Set Playback Speed',
+            choices.map(
+                (speed) =>
+                    new QuickPickTreeLeaf(`${speed} X`, {
+                        action: async (pick) => {
+                            try {
+                                await this.mpv.setSpeed(speed);
+                            } finally {
+                                pick.dispose();
+                            }
+                        },
+                    })
+            )
+        );
         quickPick.onDidHide(() => quickPick.dispose());
     }
 

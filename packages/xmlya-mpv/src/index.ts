@@ -4,7 +4,6 @@ import { LibMpv } from './libmpv';
 import { Logger, LogLevel } from './logger';
 import { ILibMpvOptions } from './types';
 
-
 export interface IMpvOptions extends ILibMpvOptions {
     logger?: (...args: any) => void;
     /**
@@ -37,7 +36,7 @@ export class Mpv extends LibMpv {
         const defer = new Defer(timeout, () => {
             handle.dispose();
         });
-        
+
         let started = false;
         const handle = this.onEvent(({ event }) => {
             if (event === 'start-file') {
@@ -72,11 +71,19 @@ export class Mpv extends LibMpv {
     }
 
     /**
-     * adjust the playback speed
-     * @param factor 0.01 - 100
+     * get the speed
      */
-    async setSpeed(factor: number): Promise<void> {
-        await this.setProp('speed', factor);
+    async getSpeed(): Promise<number> {
+        return await this.getProp('speed');
+    }
+    /**
+     * set the playback speed
+     * @param speed 0.01 - 100
+     */
+    async setSpeed(speed: number): Promise<void> {
+        if (speed < 0.01) speed = 0.01;
+        else if (speed > 100) speed = 100;
+        await this.setProp('speed', speed);
     }
 
     /**
@@ -86,7 +93,13 @@ export class Mpv extends LibMpv {
         return await this.getProp('volume');
     }
 
+    /**
+     * set the volume, 0 - 100
+     * @param volume
+     */
     async setVolume(volume: number): Promise<void> {
+        if (volume < 0) volume = 0;
+        else if (volume > 100) volume = 100;
         await this.setProp('volume', volume);
     }
 

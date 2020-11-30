@@ -4,6 +4,18 @@ export interface ILibMpvOptions {
     socketPath?: string;
     args?: string[];
     mpvBinary?: string;
+    /**
+     * start volume, 0 - 100
+     */
+    volume?: number;
+    /**
+     * start speed, 0.01 - 100
+     */
+    speed?: number;
+    /**
+     * if start with mute
+     */
+    mute?: boolean;
 }
 
 // https://mpv.io/manual/stable/#list-of-events
