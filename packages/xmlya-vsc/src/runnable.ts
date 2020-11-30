@@ -9,10 +9,7 @@ const DescSym = Symbol('desc');
 
 type MethodPropertyKeys<T> = { [K in keyof T]: T[K] extends Func<any[], any> ? K : never }[keyof T];
 
-export const command = (name: string, desc?: string) => <
-    T extends Runnable,
-    F extends Func<any[], PromiseOrNot<vscode.Disposable | void>>
->(
+export const command = (name: string, desc?: string) => <T extends Runnable, F extends Func<any[], PromiseOrNot<void>>>(
     target: T,
     propertyKey: MethodPropertyKeys<T>,
     descriptor: TypedPropertyDescriptor<F>
@@ -68,8 +65,6 @@ export const command = (name: string, desc?: string) => <
     };
 };
 
-const noop = () => {};
-
 export class Runnable extends vscode.Disposable {
     private _busy = false;
     private resolver?: () => void;
@@ -108,13 +103,7 @@ export class Runnable extends vscode.Disposable {
                     if (title && this.busy) return;
                     try {
                         this.addBusyLock(title);
-                        const ret = await (this as any)[command.propertyKey](...args);
-                        // if result is a disposable object
-                        if (ret instanceof vscode.Disposable) {
-                            context.subscriptions.push(ret);
-                        }
-                    } catch (e) {
-                        Logger.throw(e);
+                        await (this as any)[command.propertyKey](...args);
                     } finally {
                         this.freeBusyLock();
                     }

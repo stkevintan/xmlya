@@ -250,7 +250,6 @@ export class Player extends Runnable {
             new QuickPickTreeLeaf(`Duration    : ${trackInfo?.duration}`),
         ]);
         quickPick.onDidHide(() => quickPick.dispose());
-        return quickPick;
     }
 
     @command('player.goNext', 'Loading next track...')
