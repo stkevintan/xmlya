@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import * as vscode from 'vscode';
-import { Func, isPromise } from './lib';
+import { Func, isPromise, PromiseOrNot } from './lib';
 import { Logger } from './lib/logger';
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -9,7 +9,10 @@ const DescSym = Symbol('desc');
 
 type MethodPropertyKeys<T> = { [K in keyof T]: T[K] extends Func<any[], any> ? K : never }[keyof T];
 
-export const command = (name: string, desc?: string) => <T extends Runnable, F extends Func<any[], any>>(
+export const command = (name: string, desc?: string) => <
+    T extends Runnable,
+    F extends Func<any[], PromiseOrNot<vscode.Disposable | void>>
+>(
     target: T,
     propertyKey: MethodPropertyKeys<T>,
     descriptor: TypedPropertyDescriptor<F>
@@ -33,7 +36,7 @@ export const command = (name: string, desc?: string) => <T extends Runnable, F e
 
     const boundMethod = Symbol(`proxied/${propertyKey}`);
 
-    const handler = Logger.error;
+    const handler = Logger.throw;
 
     return {
         configurable: descriptor.configurable,
@@ -70,65 +73,53 @@ const noop = () => {};
 export class Runnable extends vscode.Disposable {
     private _busy = false;
     private resolver?: () => void;
-    private progress?: vscode.Progress<{ message?: string; increment?: number }>;
 
-    setBusy(value: boolean, title?: string) {
-        this._busy = value;
-        if (value && title) {
-            if (this.progress) {
-                this.progress.report({
-                    message: title,
-                });
-            } else {
-                vscode.window.withProgress(
-                    {
-                        title,
-                        location: vscode.ProgressLocation.Notification,
-                    },
-                    (progress) => {
-                        this.progress = progress;
-                        return new Promise<void>((res) => {
-                            this.resolver = () => {
-                                this.progress = undefined;
-                                res();
-                            };
-                        });
-                    }
-                );
-            }
-        } else {
-            this.resolver?.();
-        }
+    private addBusyLock(title: string) {
+        if (this._busy) return;
+        this._busy = true;
+        vscode.window.withProgress(
+            {
+                title,
+                location: vscode.ProgressLocation.Notification,
+            },
+            () => new Promise<void>((res) => (this.resolver = res))
+        );
+    }
+
+    private freeBusyLock() {
+        this.resolver?.();
     }
 
     get busy() {
         return this._busy;
     }
 
-    constructor(callOnDispose: () => void, private busyEnalbed = false) {
+    constructor(callOnDispose: () => void) {
         super(callOnDispose);
     }
 
     runInContext(context: vscode.ExtensionContext) {
         const commands = Reflect.getMetadata(CommandSym, this) as { name: string; propertyKey: string }[];
-        commands?.map((command) =>
+        if (!commands) return;
+        for (const command of commands) {
+            const title = Reflect.getMetadata(DescSym, this, command.propertyKey);
             context.subscriptions.push(
-                vscode.commands.registerCommand(
-                    `xmlya.${command.name}`,
-                    this.busyEnalbed
-                        ? async (...args: any[]) => {
-                              if (this.busy) return;
-                              this.setBusy(true, Reflect.getMetadata(DescSym, this, command.propertyKey));
-                              try {
-                                  await (this as any)[command.propertyKey](...args);
-                              } finally {
-                                  this.setBusy(false);
-                              }
-                          }
-                        : (this as any)[command.propertyKey],
-                    this
-                )
-            )
-        );
+                vscode.commands.registerCommand(`xmlya.${command.name}`, async (...args: any[]) => {
+                    if (title && this.busy) return;
+                    try {
+                        this.addBusyLock(title);
+                        const ret = await (this as any)[command.propertyKey](...args);
+                        // if result is a disposable object
+                        if (ret instanceof vscode.Disposable) {
+                            context.subscriptions.push(ret);
+                        }
+                    } catch (e) {
+                        Logger.throw(e);
+                    } finally {
+                        this.freeBusyLock();
+                    }
+                })
+            );
+        }
     }
 }

@@ -115,7 +115,8 @@ export class Player extends Runnable {
         super(() => {
             this.progressResover?.();
             vscode.Disposable.from(...this.subscriptions, this.ctx).dispose();
-        }, true);
+        });
+
         this.mpv = new Mpv({
             mpvBinary: Configuration.mpvBinary,
             logLevel: 'debug',
@@ -172,20 +173,15 @@ export class Player extends Runnable {
                             this.ctx.set('player.readyState', 'error');
                         } else if (data.reason === 'quit') {
                             this.ctx.set('plyaer.readyState', 'unload');
+                        } else if (data.reason === 'eof') {
+                            // try to play next track.
+                            vscode.commands.executeCommand('xmlya.player.goNext');
                         }
                         break;
                 }
             })
         );
     }
-
-    // async playTrackCMD(trackId?: number, albumId?: number) {
-    //     if (this.busy) return;
-    //     if (trackId !== undefined && albumId !== undefined) {
-    //         this.setBusy(true, '')
-    //         await this.playTrack(trackId, albumId);
-    //     }
-    // }
 
     @command('player.playTrack', 'Loading track...')
     async playTrack(trackId: number, albumId: number) {
@@ -244,16 +240,17 @@ export class Player extends Runnable {
     showTrackInfo() {
         const { trackInfo } = this;
         if (trackInfo === undefined) {
-            vscode.window.showErrorMessage('No track info found.');
+            Logger.throw('No track info found.');
         }
         const quickPick = new QuickPick();
         quickPick.render('Track Info', [
-            new QuickPickTreeLeaf(`Track Name: ${trackInfo?.trackName}`),
-            new QuickPickTreeLeaf(`Album Name: ${trackInfo?.albumName}`),
-            new QuickPickTreeLeaf(`Update time: ${trackInfo?.updateTime}`),
-            new QuickPickTreeLeaf(`Duration: ${trackInfo?.duration}`),
+            new QuickPickTreeLeaf(`Track Name  : ${trackInfo?.trackName}`),
+            new QuickPickTreeLeaf(`Album Name  : ${trackInfo?.albumName}`),
+            new QuickPickTreeLeaf(`Update time : ${trackInfo?.updateTime}`),
+            new QuickPickTreeLeaf(`Duration    : ${trackInfo?.duration}`),
         ]);
         quickPick.onDidHide(() => quickPick.dispose());
+        return quickPick;
     }
 
     @command('player.goNext', 'Loading next track...')
