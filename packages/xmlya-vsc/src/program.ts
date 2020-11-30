@@ -4,7 +4,7 @@ import { QuickPick, QuickPickTreeLeaf, QuickPickTreeParent } from './components/
 import { FavoritesIcon, PlayHistoryIcon, PurchasedIcon, SubscriptionsIcon } from './lib';
 import { command, Runnable } from './runnable';
 
-export class Interactor extends Runnable {
+export class Program extends Runnable {
     private quickPick: QuickPick = new QuickPick();
     constructor(private sdk: XmlyaSDK) {
         super(() => {
@@ -98,9 +98,9 @@ export class Interactor extends Runnable {
                     new QuickPickTreeLeaf(track.trackTitle, {
                         description: track.trackDuration,
                         detail: track.albumName,
-                        action: async (picker) => {
-                            vscode.commands.executeCommand('xmlya.player.playTrack', track.trackId);
+                        action: (picker) => {
                             picker.hide();
+                            vscode.commands.executeCommand('xmlya.player.playTrack', track.trackId);
                         },
                     })
             ),
@@ -142,9 +142,9 @@ export class Interactor extends Runnable {
                 (track) =>
                     new QuickPickTreeLeaf(track.title, {
                         description: track.createDateFormat,
-                        action: async (picker) => {
-                            vscode.commands.executeCommand('xmlya.player.playTrack', track.trackId, album.id);
+                        action: (picker) => {
                             picker.hide();
+                            vscode.commands.executeCommand('xmlya.player.playTrack', track.trackId, album.id);
                         },
                     })
             ),

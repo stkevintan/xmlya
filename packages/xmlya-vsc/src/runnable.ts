@@ -66,27 +66,31 @@ export const command = (name: string, desc?: string) => <T extends Runnable, F e
 };
 
 export class Runnable extends vscode.Disposable {
-    private _busy = false;
-    private resolver?: () => void;
+    private locked = false;
+    private release?: () => void;
 
-    private addBusyLock(title: string) {
-        if (this._busy) return;
-        this._busy = true;
+    private lock(title: string) {
+        if (this.locked) return;
+        this.locked = true;
         vscode.window.withProgress(
             {
                 title,
                 location: vscode.ProgressLocation.Notification,
             },
-            () => new Promise<void>((res) => (this.resolver = res))
+            () =>
+                new Promise<void>(
+                    (res) =>
+                        (this.release = () => {
+                            this.locked = false;
+                            this.release = undefined;
+                            res();
+                        })
+                )
         );
     }
 
-    private freeBusyLock() {
-        this.resolver?.();
-    }
-
-    get busy() {
-        return this._busy;
+    get isLocked() {
+        return this.locked;
     }
 
     constructor(callOnDispose: () => void) {
@@ -100,12 +104,12 @@ export class Runnable extends vscode.Disposable {
             const title = Reflect.getMetadata(DescSym, this, command.propertyKey);
             context.subscriptions.push(
                 vscode.commands.registerCommand(`xmlya.${command.name}`, async (...args: any[]) => {
-                    if (title && this.busy) return;
+                    if (title && this.locked) return;
                     try {
-                        this.addBusyLock(title);
+                        this.lock(title);
                         await (this as any)[command.propertyKey](...args);
                     } finally {
-                        this.freeBusyLock();
+                        this.release?.();
                     }
                 })
             );
