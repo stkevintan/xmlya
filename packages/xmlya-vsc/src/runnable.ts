@@ -1,5 +1,7 @@
+import { XmlyaSDK } from '@xmlya/sdk';
 import 'reflect-metadata';
 import * as vscode from 'vscode';
+import { ContextService } from './context-service';
 import { Func, isPromise, PromiseOrNot } from './lib';
 import { Logger } from './lib/logger';
 
@@ -65,9 +67,10 @@ export const command = (name: string, desc?: string) => <T extends Runnable, F e
     };
 };
 
-export class Runnable extends vscode.Disposable {
+export abstract class Runnable extends vscode.Disposable {
     private locked = false;
     private release?: () => void;
+    protected readonly subscriptions: { dispose: () => void }[] = [];
 
     private lock(title: string) {
         if (this.locked) return;
@@ -93,8 +96,16 @@ export class Runnable extends vscode.Disposable {
         return this.locked;
     }
 
-    constructor(callOnDispose: () => void) {
-        super(callOnDispose);
+    get ctx(): ContextService {
+        return ContextService.getInstance();
+    }
+
+    constructor() {
+        super(() => {
+            if (this.subscriptions.length) {
+                vscode.Disposable.from(...this.subscriptions).dispose();
+            }
+        });
     }
 
     runInContext(context: vscode.ExtensionContext) {

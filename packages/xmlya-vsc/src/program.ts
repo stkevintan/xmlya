@@ -4,6 +4,7 @@ import { Configuration } from './configuration';
 import { Player } from './containers/player';
 import { App } from './containers/app';
 import { Logger, LogLevel } from './lib';
+import { ContextService } from './context-service';
 
 export class Program {
     private sdk: XmlyaSDK;
@@ -17,7 +18,9 @@ export class Program {
         this.app = new App(this.sdk);
         this.player = new Player(this.sdk);
 
-        this.context.subscriptions.push(vscode.Disposable.from(this.app, this.player));
+        this.context.subscriptions.push(this.app);
+        this.context.subscriptions.push(this.player);
+        this.context.subscriptions.push(ContextService);
     }
 
     run() {

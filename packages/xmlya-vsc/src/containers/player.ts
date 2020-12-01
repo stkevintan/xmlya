@@ -4,23 +4,17 @@ import { IContextTracks, ITrackAudio, XmlyaSDK } from '@xmlya/sdk';
 import { Logger } from '../lib/logger';
 import { Configuration } from '../configuration';
 import { StatusBar } from '../components/status-bar';
-import { Action, NA, RuntimeContext } from '../lib';
+import { NA } from '../lib';
 import { Mpv } from '@xmlya/mpv';
 import { QuickPick, QuickPickTreeLeaf } from '../components/quick-pick';
-import controls from '../player-controls.json';
+import controls from '../playctrls.json';
 
 export class Player extends Runnable {
-    private subscriptions: vscode.Disposable[] = [];
-
     private playContext?: IContextTracks;
 
     private currentTrack?: ITrackAudio;
 
     private mpv: Mpv;
-
-    private statusBar: StatusBar;
-    private ctx: RuntimeContext;
-    private progressResover?: Action;
 
     get playList() {
         return this.playContext?.tracksAudioPlay ?? [];
@@ -32,33 +26,21 @@ export class Player extends Runnable {
     }
 
     constructor(private sdk: XmlyaSDK) {
-        super(() => {
-            this.progressResover?.();
-            vscode.Disposable.from(...this.subscriptions, this.ctx, this.statusBar).dispose();
-        });
-
+        super();
         this.mpv = new Mpv({
             mpvBinary: Configuration.mpvBinary,
             logLevel: 'debug',
             logger: console.log,
         });
 
-        this.ctx = new RuntimeContext({
-            'player.readyState': 'unload',
-            'player.isMuted': false,
-            'player.hasNext': false,
-            'player.hasPrev': false,
-            'player.volume': NA,
-            'player.trackTitle': NA,
-            'player.speed': NA,
-        });
         this.syncContext();
-        this.statusBar = new StatusBar(controls, 1024);
-        this.statusBar.activate(this.ctx);
+        const statusBar = new StatusBar(controls, 1024);
+        statusBar.renderWith(this.ctx, 'player');
+        this.subscriptions.push(statusBar);
     }
 
     private syncContext() {
-        return vscode.Disposable.from(
+        this.subscriptions.push(
             this.mpv.watchProp<boolean>('core-idle', (active) => {
                 if (!active) this.ctx.set('player.readyState', 'playing');
             }),

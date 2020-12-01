@@ -3,13 +3,15 @@ import { IAlbum, IPaginator, ISortablePaginator, XmlyaSDK } from '@xmlya/sdk';
 import { QuickPick, QuickPickTreeLeaf, QuickPickTreeParent } from '../components/quick-pick';
 import { FavoritesIcon, PlayHistoryIcon, PurchasedIcon, SubscriptionsIcon } from '../lib';
 import { command, Runnable } from '../runnable';
+import { ContextService } from 'src/context-service';
 
 export class App extends Runnable {
-    private quickPick: QuickPick = new QuickPick();
+    private quickPick: QuickPick;
+
     constructor(private sdk: XmlyaSDK) {
-        super(() => {
-            this.quickPick.dispose();
-        });
+        super();
+        this.quickPick = new QuickPick();
+        this.subscriptions.push(this.quickPick);
     }
 
     @command('user.menu')

@@ -2,7 +2,108 @@
  * A simple implement of  `vscode.contextKey`
  */
 
-export type ContextExpression =
+import { Disposable, EventEmitter } from 'vscode';
+import { NA } from './lib';
+
+export type When = string;
+
+function checkKey(key: string) {
+    if (!key) throw new Error('key should not be empty or null.');
+    if (/[^\w.'"]/.test(key)) throw new Error(`key "${key}" is invalid, only [a-zA-Z_.'"] are allowed`);
+}
+export class ContextService extends Disposable {
+    private store: Record<string, any> = {};
+    private event = new EventEmitter<string[]>();
+
+    private static INSTANCE?: ContextService;
+
+    static getInstance(): ContextService {
+        if (!ContextService.INSTANCE) {
+            ContextService.INSTANCE = new ContextService();
+        }
+        return ContextService.INSTANCE;
+    }
+
+    static dispose(): void {
+        if (ContextService.INSTANCE) {
+            ContextService.INSTANCE.dispose();
+            ContextService.INSTANCE = undefined;
+        }
+    }
+    private constructor() {
+        super(() => this.event.dispose());
+    }
+
+    private assign(ctx: Record<string, any>) {
+        const keys = Object.keys(ctx);
+        // check key first. to avoid transaction problem.
+        keys.forEach(checkKey);
+        for (const key of keys) {
+            this.store[key] = ctx[key];
+        }
+    }
+
+    private fire(keys: string[] | string) {
+        if (typeof keys === 'string') {
+            this.event.fire([keys]);
+        } else if (keys.length > 0) {
+            this.event.fire(keys);
+        }
+    }
+
+    set(ctx: Record<string, any>): void;
+    set(key: string, value: any): void;
+    set(keyOrCtx: Record<string, any> | string, value?: any): void {
+        if (typeof keyOrCtx === 'string') {
+            const key = keyOrCtx;
+            checkKey(key);
+            this.store[key] = value;
+            this.fire(key);
+        } else {
+            const ctx = keyOrCtx;
+            this.assign(ctx);
+            this.fire(Object.keys(ctx));
+        }
+    }
+
+    get<T = unknown>(key: string): T | undefined {
+        return this.store[key];
+    }
+
+    private contextMatchesRules(rules: string): boolean {
+        const expr = parseContextString(rules);
+        return expr?.evaluate(this) ?? false;
+    }
+
+    testWhen(when?: When): boolean {
+        if (typeof when === 'string') {
+            return this.contextMatchesRules(when);
+        }
+        return true;
+    }
+
+    parseString(text: string): string {
+        return text.replace(/\{[\w.]+\}/g, (expr) => {
+            const key = expr.slice(1, expr.length - 1);
+            const val = this.get<any>(key);
+            if (val !== undefined) {
+                return val;
+            }
+            return NA;
+        });
+    }
+
+    delete(key: string) {
+        delete this.store[key];
+        this.fire([key]);
+    }
+
+    onChange(cb: (changedKeys: string[]) => void): Disposable {
+        return this.event.event(cb);
+    }
+}
+
+type ContextExpression =
     | ContextFalseExpr
     | ContextTrueExpr
     | ContextKeyExpr
@@ -12,7 +113,7 @@ export type ContextExpression =
     | ContextAndExpr
     | ContextOrExpr;
 
-export interface IContext {
+interface IContext {
     get<T>(key: string): T | undefined;
 }
 
@@ -23,7 +124,7 @@ interface IContextExpression {
     evaluate(context: IContext): boolean;
 }
 
-export class ContextFalseExpr implements IContextExpression {
+class ContextFalseExpr implements IContextExpression {
     static INSTANCE = new ContextFalseExpr();
 
     protected constructor() {}
@@ -42,7 +143,7 @@ export class ContextFalseExpr implements IContextExpression {
     }
 }
 
-export class ContextTrueExpr implements IContextExpression {
+class ContextTrueExpr implements IContextExpression {
     static INSTANCE = new ContextTrueExpr();
 
     protected constructor() {}
@@ -61,7 +162,7 @@ export class ContextTrueExpr implements IContextExpression {
     }
 }
 
-export class ContextKeyExpr implements IContextExpression {
+class ContextKeyExpr implements IContextExpression {
     static create(key: string): ContextExpression {
         return new ContextKeyExpr(key);
     }
@@ -85,7 +186,7 @@ export class ContextKeyExpr implements IContextExpression {
     }
 }
 
-export class ContextEqualsExpr implements IContextExpression {
+class ContextEqualsExpr implements IContextExpression {
     static create(key: string, value: any): ContextExpression {
         if (typeof value === 'boolean') {
             return value ? ContextKeyExpr.create(key) : ContextKeyNotExpr.create(key);
@@ -113,7 +214,7 @@ export class ContextEqualsExpr implements IContextExpression {
     }
 }
 
-export class ContextNotEqualsExpr implements IContextExpression {
+class ContextNotEqualsExpr implements IContextExpression {
     static create(key: string, value: any): ContextExpression {
         if (typeof value === 'boolean') {
             return value ? ContextKeyNotExpr.create(key) : ContextKeyExpr.create(key);
@@ -141,7 +242,7 @@ export class ContextNotEqualsExpr implements IContextExpression {
     }
 }
 
-export class ContextKeyNotExpr implements IContextExpression {
+class ContextKeyNotExpr implements IContextExpression {
     static create(key: string): ContextExpression {
         return new ContextKeyNotExpr(key);
     }
@@ -165,7 +266,7 @@ export class ContextKeyNotExpr implements IContextExpression {
     }
 }
 
-export class ContextAndExpr implements IContextExpression {
+class ContextAndExpr implements IContextExpression {
     static create(exprs: ReadonlyArray<ContextExpression | null | undefined>): ContextExpression | undefined {
         const _exprs = ContextAndExpr._normalizeArray(exprs);
         if (_exprs.length === 0) {
@@ -241,7 +342,7 @@ export class ContextAndExpr implements IContextExpression {
     }
 }
 
-export class ContextOrExpr implements IContextExpression {
+class ContextOrExpr implements IContextExpression {
     static create(exprs: ReadonlyArray<ContextExpression | null | undefined>): ContextExpression | undefined {
         const _exprs = this._normalizeArr(exprs);
         if (_exprs.length === 0) {
@@ -314,7 +415,7 @@ export class ContextOrExpr implements IContextExpression {
     }
 }
 
-export function parseContextString(str: string | null | undefined): ContextExpression | undefined {
+function parseContextString(str: string | null | undefined): ContextExpression | undefined {
     if (!str) return undefined;
 
     return parseOrString(str);

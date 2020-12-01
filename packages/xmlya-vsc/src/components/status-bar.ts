@@ -1,4 +1,5 @@
-import { RuntimeContext, When } from 'src/lib';
+import { ContextService, When } from 'src/context-service';
+import { debounce } from 'ts-debounce';
 import * as vscode from 'vscode';
 
 export interface IStatusBarItemSpec {
@@ -22,12 +23,26 @@ export class StatusBar extends vscode.Disposable {
         });
     }
 
-    activate(ctx: RuntimeContext) {
-        this.render(ctx);
-        this.subscriptions.push(ctx.onChange(this.render.bind(this, ctx), 50));
+    renderWith(ctx: ContextService, scope?: string) {
+        this.repaint(ctx);
+        this.subscriptions.push(
+            ctx.onChange(
+                debounce((keys) => {
+                    if (this.matchScope(keys, scope)) {
+                        this.repaint(ctx);
+                    }
+                }, 50)
+            )
+        );
     }
 
-    private render(ctx: RuntimeContext) {
+    private matchScope(keys: string[], scope?: string): boolean {
+        if (!scope) return true;
+        return keys.some((key) => key.startsWith(scope + '.'));
+    }
+
+    // TODO: implement an efficient diff algorithm.
+    private repaint(ctx: ContextService) {
         let itemIndex = 0;
         for (const spec of this.specs.filter((spec) => ctx.testWhen(spec.when))) {
             const item = this.items[itemIndex] ?? this.createNewItem();
