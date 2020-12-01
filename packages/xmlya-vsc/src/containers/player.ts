@@ -1,13 +1,13 @@
 import * as vscode from 'vscode';
-import { command, Runnable } from './runnable';
+import { command, Runnable } from '../runnable';
 import { IContextTracks, ITrackAudio, XmlyaSDK } from '@xmlya/sdk';
-import { Logger } from './lib/logger';
-import { Configuration } from './configuration';
-import { StatusBar } from './components/status-bar';
-import { Action, NA, RuntimeContext } from './lib';
+import { Logger } from '../lib/logger';
+import { Configuration } from '../configuration';
+import { StatusBar } from '../components/status-bar';
+import { Action, NA, RuntimeContext } from '../lib';
 import { Mpv } from '@xmlya/mpv';
-import { QuickPick, QuickPickTreeLeaf } from './components/quick-pick';
-import controls from './player-controls.json';
+import { QuickPick, QuickPickTreeLeaf } from '../components/quick-pick';
+import controls from '../player-controls.json';
 
 export class Player extends Runnable {
     private subscriptions: vscode.Disposable[] = [];

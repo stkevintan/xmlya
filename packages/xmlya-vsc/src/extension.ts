@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { App } from './app';
+import { Program } from './program';
 
 export function activate(context: vscode.ExtensionContext) {
-    const app = new App(context);
-    app.run();
+    const program = new Program(context);
+    program.run();
 }
