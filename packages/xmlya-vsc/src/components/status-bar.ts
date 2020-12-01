@@ -6,7 +6,8 @@ export interface IStatusBarItemSpec {
     text: string;
     tooltip?: string;
     color?: string | vscode.ThemeColor;
-    command?: string | [string, ...any];
+    command?: string;
+    arguments?: any[];
     accessibilityInformation?: vscode.AccessibilityInformation;
     when?: When;
 }
@@ -33,7 +34,7 @@ export class StatusBar extends vscode.Disposable {
             item.text = ctx.parseString(spec.text);
             item.tooltip = spec.tooltip;
             item.color = spec.color;
-            item.command = this.makeCommand(spec.command);
+            item.command = this.makeCommand(spec.command, spec.arguments);
             item.show();
             itemIndex++;
         }
@@ -47,15 +48,15 @@ export class StatusBar extends vscode.Disposable {
     private createNewItem(): vscode.StatusBarItem {
         const item = vscode.window.createStatusBarItem(
             vscode.StatusBarAlignment.Right,
-            this.priorityBase + this.items.length
+            this.priorityBase - this.items.length
         );
         // do not forget push it to the items
         this.items.push(item);
         return item;
     }
 
-    private makeCommand(command: IStatusBarItemSpec['command']): vscode.StatusBarItem['command'] {
+    private makeCommand(command?: string, _arguments?: any[]): vscode.StatusBarItem['command'] {
         if (!command) return undefined;
-        return typeof command === 'string' ? command : { command: command[0], arguments: command.slice(1), title: '' };
+        return _arguments ? { command, arguments: _arguments, title: '' } : command;
     }
 }

@@ -1,9 +1,8 @@
 import { debounce } from 'ts-debounce';
 import { Disposable, EventEmitter } from 'vscode';
-import { Func } from './common';
 import { parseContextString } from './context-expression';
 
-export type When = string | Func<[RuntimeContext], boolean>;
+export type When = string;
 
 function checkKey(key: string) {
     if (!key) throw new Error('key should not be empty or null.');
@@ -66,10 +65,6 @@ export class RuntimeContext {
     }
 
     testWhen(when?: When): boolean {
-        if (typeof when === 'function') {
-            return when(this);
-        }
-
         if (typeof when === 'string') {
             return this.contextMatchesRules(when);
         }

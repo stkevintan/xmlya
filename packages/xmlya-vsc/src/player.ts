@@ -3,88 +3,11 @@ import { command, Runnable } from './runnable';
 import { IContextTracks, ITrackAudio, XmlyaSDK } from '@xmlya/sdk';
 import { Logger } from './lib/logger';
 import { Configuration } from './configuration';
-import { IStatusBarItemSpec, StatusBar } from './components/status-bar';
+import { StatusBar } from './components/status-bar';
 import { Action, NA, RuntimeContext } from './lib';
 import { Mpv } from '@xmlya/mpv';
 import { QuickPick, QuickPickTreeLeaf } from './components/quick-pick';
-
-const statusItems: IStatusBarItemSpec[] = [
-    {
-        key: 'menu',
-        tooltip: 'Ximalaya',
-        text: '$(broadcast)',
-        command: 'xmlya.user.menu',
-    },
-    {
-        key: 'track',
-        tooltip: 'track info',
-        text: '{player.trackTitle}',
-        command: 'xmlya.player.trackInfo',
-        when: "player.readyState == 'playing' || player.readyState == 'paused'",
-    },
-    {
-        key: 'unmute',
-        tooltip: 'Unmute',
-        text: '$(mute)',
-        command: ['xmlya.player.toggleMute', false],
-        when: 'player.isMuted',
-    },
-    {
-        key: 'mute',
-        tooltip: 'Mute',
-        text: '$(unmute)',
-        command: ['xmlya.player.toggleMute', true],
-        when: '!player.isMuted',
-    },
-    {
-        key: 'volume',
-        tooltip: 'Volume',
-        text: `{player.volume}`,
-        command: 'xmlya.player.loopVolume',
-        when: "player.readyState != 'unload'",
-    },
-    {
-        key: 'prev',
-        tooltip: 'Previous track',
-        text: '$(chevron-left)',
-        command: 'xmlya.player.goPrev',
-        when: 'player.hasPrev',
-    },
-    {
-        key: 'loading',
-        tooltip: 'Loading',
-        text: '$(loading)',
-        when: "player.readyState == 'seeking' || player.readyState == 'loading'",
-    },
-    {
-        key: 'pause',
-        tooltip: 'Pause',
-        text: '$(debug-pause)',
-        command: 'xmlya.player.pause',
-        when: "player.readyState == 'playing'",
-    },
-    {
-        key: 'play',
-        tooltip: 'Play',
-        text: '$(play)',
-        command: 'xmlya.player.play',
-        when: "player.readyState == 'paused'",
-    },
-    {
-        key: 'next',
-        tooltip: 'Next track',
-        text: '$(chevron-right)',
-        command: 'xmlya.player.goNext',
-        when: 'player.hasNext',
-    },
-    {
-        key: 'speed',
-        tooltip: 'Set playback speed',
-        text: '{player.speed} X',
-        command: 'xmlya.player.setSpeed',
-        when: "player.readyState != 'unload'",
-    },
-];
+import controls from './player-controls.json';
 
 export class Player extends Runnable {
     private subscriptions: vscode.Disposable[] = [];
@@ -130,7 +53,7 @@ export class Player extends Runnable {
             'player.speed': NA,
         });
         this.syncContext();
-        this.statusBar = new StatusBar(statusItems.reverse(), 1024);
+        this.statusBar = new StatusBar(controls, 1024);
         this.statusBar.activate(this.ctx);
     }
 

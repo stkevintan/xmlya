@@ -104,6 +104,7 @@ export class Runnable extends vscode.Disposable {
             const title = Reflect.getMetadata(DescSym, this, command.propertyKey);
             context.subscriptions.push(
                 vscode.commands.registerCommand(`xmlya.${command.name}`, async (...args: any[]) => {
+                    // TODO: add debounce if necessary.
                     if (title && this.locked) return;
                     try {
                         this.lock(title);
