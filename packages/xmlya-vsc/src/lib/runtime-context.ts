@@ -1,6 +1,7 @@
 import { debounce } from 'ts-debounce';
 import { Disposable, EventEmitter } from 'vscode';
 import { Func } from './common';
+import { parseContextString } from './context-expression';
 
 export type When = string | Func<[RuntimeContext], boolean>;
 
@@ -60,7 +61,8 @@ export class RuntimeContext {
     }
 
     private contextMatchesRules(rules: string): boolean {
-        throw new Error('Method not implement');
+        const expr = parseContextString(rules);
+        return expr?.evaluate(this) ?? false;
     }
 
     testWhen(when?: When): boolean {

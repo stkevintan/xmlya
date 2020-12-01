@@ -1,5 +1,4 @@
 import { RuntimeContext, When } from 'src/lib';
-import { Logger } from 'src/lib/logger';
 import * as vscode from 'vscode';
 
 export interface IStatusBarItemSpec {
@@ -46,65 +45,17 @@ export class StatusBar extends vscode.Disposable {
     }
 
     private createNewItem(): vscode.StatusBarItem {
-        return vscode.window.createStatusBarItem(
+        const item = vscode.window.createStatusBarItem(
             vscode.StatusBarAlignment.Right,
             this.priorityBase + this.items.length
         );
+        // do not forget push it to the items
+        this.items.push(item);
+        return item;
     }
 
     private makeCommand(command: IStatusBarItemSpec['command']): vscode.StatusBarItem['command'] {
         if (!command) return undefined;
         return typeof command === 'string' ? command : { command: command[0], arguments: command.slice(1), title: '' };
     }
-
-    // addItem = (key: string, spec: IStatusBarItemSpec): void => {
-    //     Logger.assertTrue(!this.itemMap.has(key), `Duplicated key ${key} when creating status bar item`);
-
-    //     const btn = vscode.window.createStatusBarItem(
-    //         spec.alignment || vscode.StatusBarAlignment.Right,
-    //         this.priorityBase + this.itemMap.size
-    //     );
-    //     btn.text = this.parseTemplate(spec.text);
-    //     btn.tooltip = spec.tooltip;
-    //     btn.color = spec.color;
-    //     btn.command = spec.command;
-    //     btn[this.evalWhen(spec.when) ? 'show' : 'hide']();
-    //     this.specMap.set(btn, spec);
-    //     this.itemMap.set(key, btn);
-    // };
-
-    // private subscribeToContext(): vscode.Disposable {
-    //     return this.ctx.onChange(() => {
-    //         for (const item of this.itemMap.values()) {
-    //             const additional = this.specMap.get(item);
-    //             if (additional?.text) {
-    //                 item.text = this.parseTemplate(additional.text);
-    //             }
-    //             this.evalWhen(additional?.when) ? item.show() : item.hide();
-    //         }
-    //     }, 50);
-    // }
-
-    // updateItem = (
-    //     key: string,
-    //     payload: Partial<
-    //         Pick<
-    //             IStatusBarItemSpec,
-    //             'color' | 'alignment' | 'accessibilityInformation' | 'text' | 'tooltip' | 'command'
-    //         >
-    //     >
-    // ): void => {
-    //     if (!this.itemMap.has(key)) {
-    //         return;
-    //     }
-    //     const btn = this.itemMap.get(key)!;
-    //     Object.assign(btn, payload);
-    //     if (payload.text) {
-    //         const spec = this.specMap.get(btn);
-    //         if (spec) {
-    //             Object.assign(spec, payload);
-    //         }
-    //         btn.text = this.parseTemplate(payload.text);
-    //     }
-    // };
 }

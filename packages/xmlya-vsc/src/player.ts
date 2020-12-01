@@ -20,20 +20,20 @@ const statusItems: IStatusBarItemSpec[] = [
         tooltip: 'track info',
         text: '{player.trackTitle}',
         command: 'xmlya.player.trackInfo',
-        when: (ctx) => ['playing', 'paused'].includes(ctx.get('player.readyState') ?? ''),
+        when: "player.readyState == 'playing' || player.readyState == 'paused'",
     },
     {
         key: 'unmute',
         tooltip: 'Unmute',
         text: '$(mute)',
-        command: { command: 'xmlya.player.toggleMute', title: 'unmute', arguments: [false] },
+        command: ['xmlya.player.toggleMute', false],
         when: 'player.isMuted',
     },
     {
         key: 'mute',
         tooltip: 'Mute',
         text: '$(unmute)',
-        command: { command: 'xmlya.player.toggleMute', arguments: [true], title: 'mute' },
+        command: ['xmlya.player.toggleMute', true],
         when: '!player.isMuted',
     },
     {
@@ -41,7 +41,7 @@ const statusItems: IStatusBarItemSpec[] = [
         tooltip: 'Volume',
         text: `{player.volume}`,
         command: 'xmlya.player.loopVolume',
-        when: (ctx) => ctx.get('player.readyState') !== 'unload',
+        when: "player.readyState != 'unload'",
     },
     {
         key: 'prev',
@@ -54,21 +54,21 @@ const statusItems: IStatusBarItemSpec[] = [
         key: 'loading',
         tooltip: 'Loading',
         text: '$(loading)',
-        when: (ctx) => ['seeking', 'loading'].includes(ctx.get('player.readyState') ?? ''),
+        when: "player.readyState == 'seeking' || player.readyState == 'loading'",
     },
     {
         key: 'pause',
         tooltip: 'Pause',
         text: '$(debug-pause)',
         command: 'xmlya.player.pause',
-        when: (ctx) => ctx.get('player.readyState') === 'playing',
+        when: "player.readyState == 'playing'",
     },
     {
         key: 'play',
         tooltip: 'Play',
         text: '$(play)',
         command: 'xmlya.player.play',
-        when: (ctx) => ctx.get('player.readyState') === 'paused',
+        when: "player.readyState == 'paused'",
     },
     {
         key: 'next',
@@ -82,7 +82,7 @@ const statusItems: IStatusBarItemSpec[] = [
         tooltip: 'Set playback speed',
         text: '{player.speed} X',
         command: 'xmlya.player.setSpeed',
-        when: (ctx) => ctx.get('player.readyState') !== 'unload',
+        when: "player.readyState != 'unload'",
     },
 ];
 
@@ -111,7 +111,7 @@ export class Player extends Runnable {
     constructor(private sdk: XmlyaSDK) {
         super(() => {
             this.progressResover?.();
-            vscode.Disposable.from(...this.subscriptions, this.ctx).dispose();
+            vscode.Disposable.from(...this.subscriptions, this.ctx, this.statusBar).dispose();
         });
 
         this.mpv = new Mpv({
@@ -129,15 +129,9 @@ export class Player extends Runnable {
             'player.trackTitle': NA,
             'player.speed': NA,
         });
-        this.statusBar = new StatusBar(this.ctx, 1024);
-        this.initControllers();
         this.syncContext();
-    }
-
-    private initControllers() {
-        for (const item of statusItems.reverse()) {
-            this.statusBar.addItem(item.key, item);
-        }
+        this.statusBar = new StatusBar(statusItems.reverse(), 1024);
+        this.statusBar.activate(this.ctx);
     }
 
     private syncContext() {
