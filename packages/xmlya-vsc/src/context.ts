@@ -2,36 +2,80 @@
  * A simple implement of  `vscode.contextKey`
  */
 
-import { Disposable, EventEmitter } from 'vscode';
-import { NA } from './lib';
+import { Disposable, EventEmitter, ExtensionContext, ExtensionMode } from 'vscode';
+import { Logger, LogLevel, NA } from './lib';
 
 export type When = string;
 
-function checkKey(key: string) {
-    if (!key) throw new Error('key should not be empty or null.');
-    if (/[^\w.'"]/.test(key)) throw new Error(`key "${key}" is invalid, only [a-zA-Z_.'"] are allowed`);
+interface IContext {
+    get<T>(key: string): T | undefined;
 }
-export class ContextService extends Disposable {
+
+export class ContextService implements ExtensionContext, IContext {
     private store: Record<string, any> = {};
     private event = new EventEmitter<string[]>();
 
-    private static INSTANCE?: ContextService;
-
-    static getInstance(): ContextService {
-        if (!ContextService.INSTANCE) {
-            ContextService.INSTANCE = new ContextService();
-        }
-        return ContextService.INSTANCE;
+    constructor(private context: ExtensionContext) {
+        this.context.subscriptions.push(this.event);
+        // set logger level
+        Logger.Level = context.extensionMode === ExtensionMode.Production ? LogLevel.info : LogLevel.debug;
     }
 
-    static dispose(): void {
-        if (ContextService.INSTANCE) {
-            ContextService.INSTANCE.dispose();
-            ContextService.INSTANCE = undefined;
-        }
+    // A proxy for extension context.
+    get subscriptions() {
+        return this.context.subscriptions;
     }
-    private constructor() {
-        super(() => this.event.dispose());
+
+    get workspaceState() {
+        return this.context.workspaceState;
+    }
+
+    get globalState() {
+        return this.context.globalState;
+    }
+
+    get extensionUri() {
+        return this.context.extensionUri;
+    }
+
+    get extensionPath() {
+        return this.context.extensionPath;
+    }
+
+    get environmentVariableCollection() {
+        return this.context.environmentVariableCollection;
+    }
+
+    asAbsolutePath(relativePath: string): string {
+        return this.context.asAbsolutePath(relativePath);
+    }
+
+    get storageUri() {
+        return this.context.storageUri;
+    }
+
+    get storagePath() {
+        return this.context.storagePath;
+    }
+
+    get globalStorageUri() {
+        return this.context.globalStorageUri;
+    }
+
+    get globalStoragePath() {
+        return this.context.globalStoragePath;
+    }
+
+    get logUri() {
+        return this.context.logUri;
+    }
+
+    get logPath() {
+        return this.context.logPath;
+    }
+
+    get extensionMode() {
+        return this.context.extensionMode;
     }
 
     private assign(ctx: Record<string, any>) {
@@ -113,10 +157,6 @@ type ContextExpression =
     | ContextAndExpr
     | ContextOrExpr;
 
-interface IContext {
-    get<T>(key: string): T | undefined;
-}
-
 interface IContextExpression {
     keys(): string[];
     negate(): ContextExpression;
@@ -132,12 +172,15 @@ class ContextFalseExpr implements IContextExpression {
     keys(): string[] {
         return [];
     }
+
     serialize(): string {
         return 'false';
     }
+
     evaluate(context: IContext): boolean {
         return false;
     }
+
     negate(): ContextExpression {
         return ContextTrueExpr.INSTANCE;
     }
@@ -151,12 +194,15 @@ class ContextTrueExpr implements IContextExpression {
     keys(): string[] {
         return [];
     }
+
     serialize(): string {
         return 'true';
     }
+
     evaluate(context: IContext): boolean {
         return true;
     }
+
     negate(): ContextExpression {
         return ContextFalseExpr.INSTANCE;
     }
@@ -413,6 +459,11 @@ class ContextOrExpr implements IContextExpression {
         // need distribute the AND expressions.
         throw new Error('Method not implemented');
     }
+}
+
+function checkKey(key: string) {
+    if (!key) throw new Error('key should not be empty or null.');
+    if (/[^\w.'"]/.test(key)) throw new Error(`key "${key}" is invalid, only [a-zA-Z_.'"] are allowed`);
 }
 
 function parseContextString(str: string | null | undefined): ContextExpression | undefined {

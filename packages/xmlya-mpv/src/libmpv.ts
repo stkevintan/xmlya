@@ -3,6 +3,7 @@ import cp from 'child_process';
 import { Defer, EventEmitter, Disposable, memoAsync, noop, retryOnError, uniqArguments, getRandomId } from './common';
 import { Callback, IEventReply, ILibMpvOptions, IReply, isResultReply } from './types';
 import { Logger } from './logger';
+import { request } from 'http';
 
 // default Arguments
 // --no-config Do not load default configuration files. This prevents loading of both the user-level and system-wide mpv.conf and input.conf files
@@ -192,7 +193,7 @@ export class LibMpv extends Disposable {
                 }
             }
         });
-        Logger.debug('send command:', command, ...params);
+        Logger.debug('send command:', request_id, command, ...params);
         socket.write(
             JSON.stringify({ command: [command, ...params.filter((x) => x !== undefined)], request_id }) + '\n',
             (err) => {

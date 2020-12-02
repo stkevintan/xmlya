@@ -19,7 +19,7 @@
     "contributes": {
         "configuration": [
             {
-                "title": "Ximalaya configuration",
+                "title": "Ximalaya",
                 "properties": {
                     "xmlya.cookie": {
                         "type": "string",
@@ -31,6 +31,24 @@
                         "type": "string",
                         "default": "",
                         "description": "absolute path for mpv binary",
+                        "scope": "application"
+                    },
+                    "xmlya.playctrls": {
+                        "type": "array",
+                        "default": [],
+                        "description": "override the play controls in status bar",
+                        "scope": "application"
+                    },
+                    "xmlya.playbackStart": {
+                        "type": "number",
+                        "default": 0,
+                        "description": "start offset of playback, in seconds",
+                        "scope": "application"
+                    },
+                    "xmlya.playbackEnd": {
+                        "type": "number",
+                        "default": 0,
+                        "description": "end offset of playback, in seconds",
                         "scope": "application"
                     }
                 }
@@ -68,8 +86,8 @@
                 "category": "Ximalaya"
             },
             {
-                "title": "Play",
-                "command": "xmlya.player.play",
+                "title": "Play / Resume",
+                "command": "xmlya.player.resume",
                 "category": "Ximalaya"
             },
             {
@@ -99,7 +117,7 @@
             },
             {
                 "title": "Show current track info",
-                "command": "xmlya.player.trackInfo",
+                "command": "xmlya.player.showTrackInfo",
                 "category": "Ximalaya"
             },
             {

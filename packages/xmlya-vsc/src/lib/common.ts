@@ -29,3 +29,22 @@ export function leftPad(text: string | undefined, length: number) {
 export function isPromise<T>(x: PromiseOrNot<T>): x is Promise<T> {
     return x && 'then' in x;
 }
+
+export function isNil<T>(x: T | undefined | null): x is undefined | null {
+    return x === null || x === undefined;
+}
+
+export function isntNil<T>(x: T | undefined | null): x is T {
+    return !isNil(x);
+}
+
+export function omitNillKeys<T>(obj: T): Partial<T> {
+    const keys = Object.keys(obj) as (keyof T)[];
+    const copy = {} as Partial<T>;
+    for (const key of keys) {
+        if (!isNil(obj[key])) {
+            copy[key] = obj[key];
+        }
+    }
+    return copy;
+}

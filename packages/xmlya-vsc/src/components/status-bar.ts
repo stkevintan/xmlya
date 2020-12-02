@@ -1,4 +1,5 @@
-import { ContextService, When } from 'src/context-service';
+import { ConfigKeys, Configuration } from 'src/configuration';
+import { ContextService, When } from 'src/context';
 import { debounce } from 'ts-debounce';
 import * as vscode from 'vscode';
 
@@ -17,13 +18,25 @@ export class StatusBar extends vscode.Disposable {
     private items: vscode.StatusBarItem[] = [];
 
     private subscriptions: vscode.Disposable[] = [];
+    private patchedSpecs: IStatusBarItemSpec[] = [];
     constructor(private specs: IStatusBarItemSpec[], private priorityBase: number) {
         super(() => {
             vscode.Disposable.from(...this.subscriptions, ...this.items);
         });
     }
 
+    private patchSpec(patchArr: Partial<IStatusBarItemSpec>[]) {
+        this.patchedSpecs = [...this.specs];
+        for (const p of patchArr) {
+            const index = this.patchedSpecs.findIndex((spec) => spec.key === p.key);
+            if (index === -1) continue;
+            this.patchedSpecs[index] = Object.assign({}, this.patchedSpecs[index], p);
+        }
+        return this.patchedSpecs;
+    }
+
     renderWith(ctx: ContextService, scope?: string) {
+        this.patchSpec(Configuration.playctrls);
         this.repaint(ctx);
         this.subscriptions.push(
             ctx.onChange(
@@ -33,6 +46,16 @@ export class StatusBar extends vscode.Disposable {
                     }
                 }, 50)
             )
+        );
+        this.subscriptions.push(
+            Configuration.onUpdate((changedKeys) => {
+                if (changedKeys.includes(ConfigKeys.PlayCtrls)) {
+                    const { playctrls } = Configuration;
+                    console.debug('playctrls are changed', playctrls);
+                    this.patchSpec(playctrls);
+                    this.repaint(ctx);
+                }
+            })
         );
     }
 
@@ -44,7 +67,7 @@ export class StatusBar extends vscode.Disposable {
     // TODO: implement an efficient diff algorithm.
     private repaint(ctx: ContextService) {
         let itemIndex = 0;
-        for (const spec of this.specs.filter((spec) => ctx.testWhen(spec.when))) {
+        for (const spec of this.patchedSpecs.filter((spec) => ctx.testWhen(spec.when))) {
             const item = this.items[itemIndex] ?? this.createNewItem();
             item.text = ctx.parseString(spec.text);
             item.tooltip = spec.tooltip;

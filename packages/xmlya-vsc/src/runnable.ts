@@ -1,7 +1,7 @@
 import { XmlyaSDK } from '@xmlya/sdk';
 import 'reflect-metadata';
 import * as vscode from 'vscode';
-import { ContextService } from './context-service';
+import { ContextService } from './context';
 import { Func, isPromise, PromiseOrNot } from './lib';
 import { Logger } from './lib/logger';
 
@@ -67,10 +67,9 @@ export const command = (name: string, desc?: string) => <T extends Runnable, F e
     };
 };
 
-export abstract class Runnable extends vscode.Disposable {
+export abstract class Runnable {
     private locked = false;
     private release?: () => void;
-    protected readonly subscriptions: { dispose: () => void }[] = [];
 
     private lock(title: string) {
         if (this.locked) return;
@@ -96,19 +95,15 @@ export abstract class Runnable extends vscode.Disposable {
         return this.locked;
     }
 
-    get ctx(): ContextService {
-        return ContextService.getInstance();
-    }
+    constructor(protected sdk: XmlyaSDK) {}
 
-    constructor() {
-        super(() => {
-            if (this.subscriptions.length) {
-                vscode.Disposable.from(...this.subscriptions).dispose();
-            }
-        });
-    }
+    abstract initialize(context: ContextService): vscode.Disposable | undefined;
 
-    runInContext(context: vscode.ExtensionContext) {
+    runInContext(context: ContextService) {
+        const mayBeDisposable = this.initialize(context);
+        if (mayBeDisposable) {
+            context.subscriptions.push(mayBeDisposable);
+        }
         const commands = Reflect.getMetadata(CommandSym, this) as { name: string; propertyKey: string }[];
         if (!commands) return;
         for (const command of commands) {

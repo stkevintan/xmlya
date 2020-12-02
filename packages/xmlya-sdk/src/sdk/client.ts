@@ -62,6 +62,10 @@ export class Client implements IClient {
         });
     }
 
+    updateCookie(cookie?: string) {
+        this.options.cookie = cookie;
+    }
+
     private async getSign(): Promise<string> {
         const url = 'revision/time';
         const { text } = await this.client(url).json<{ text: string }>();

@@ -87,6 +87,20 @@ export class Mpv extends LibMpv {
     }
 
     /**
+     * https://mpv.io/manual/stable/#options-start
+     */
+    async startOffset(start: string): Promise<void> {
+        return await this.setProp('start', start);
+    }
+
+    /**
+     * https://mpv.io/manual/stable/#options-start
+     */
+    async endOffset(end: string): Promise<void> {
+        return await this.setProp('end', end);
+    }
+
+    /**
      * get volume, 0 - 100
      */
     async getVolume(): Promise<number> {

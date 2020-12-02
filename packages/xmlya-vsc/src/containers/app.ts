@@ -1,17 +1,15 @@
 import * as vscode from 'vscode';
-import { IAlbum, IPaginator, ISortablePaginator, XmlyaSDK } from '@xmlya/sdk';
+import { IAlbum, IPaginator, ISortablePaginator } from '@xmlya/sdk';
 import { QuickPick, QuickPickTreeLeaf, QuickPickTreeParent } from '../components/quick-pick';
 import { FavoritesIcon, PlayHistoryIcon, PurchasedIcon, SubscriptionsIcon } from '../lib';
 import { command, Runnable } from '../runnable';
-import { ContextService } from 'src/context-service';
 
 export class App extends Runnable {
-    private quickPick: QuickPick;
+    private quickPick!: QuickPick;
 
-    constructor(private sdk: XmlyaSDK) {
-        super();
+    initialize() {
         this.quickPick = new QuickPick();
-        this.subscriptions.push(this.quickPick);
+        return this.quickPick;
     }
 
     @command('user.menu')
@@ -55,12 +53,12 @@ export class App extends Runnable {
                                     description: entry.startedAtFormatText,
                                     detail: entry.childTitle,
                                     action: async (picker) => {
-                                        await vscode.commands.executeCommand(
+                                        picker.hide();
+                                        vscode.commands.executeCommand(
                                             'xmlya.player.playTrack',
                                             entry.childId,
                                             entry.itemId
                                         );
-                                        picker.hide();
                                     },
                                 })
                         ),
