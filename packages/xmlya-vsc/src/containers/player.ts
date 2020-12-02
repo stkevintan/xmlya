@@ -4,11 +4,15 @@ import { IContextTracks, ITrackAudio } from '@xmlya/sdk';
 import { Logger } from '../lib/logger';
 import { ConfigKeys, Configuration } from '../configuration';
 import { StatusBar } from '../components/status-bar';
-import { NA } from '../lib';
+import { ellipsis, formatDuration, NA, openUrl } from '../lib';
 import { Mpv } from '@xmlya/mpv';
 import { QuickPick, QuickPickTreeLeaf } from '../components/quick-pick';
 import controls from '../playctrls.json';
 import { ContextService } from 'src/context';
+import { createWriteStream } from 'fs';
+import { pipeline } from 'stream';
+import { promisify } from 'util';
+const pipe = promisify(pipeline);
 
 export class Player extends Runnable {
     private playContext?: IContextTracks;
@@ -40,7 +44,7 @@ export class Player extends Runnable {
         const syncCtxRefs = this.syncContext(context);
         const syncConfRefs = this.syncConf();
         // construct the status bar.
-        const statusBar = new StatusBar(controls, 1024);
+        const statusBar = new StatusBar(controls, -100);
         // render in current context
         statusBar.renderWith(context, 'player');
         return vscode.Disposable.from(...syncCtxRefs, ...syncConfRefs, statusBar);
@@ -123,7 +127,11 @@ export class Player extends Runnable {
         this.currentTrack = await this.sdk.getTrackAudio({ trackId });
 
         Logger.assert(this.currentTrack, 'No track to play.');
-        this.ctx.set('player.trackTitle', this.trackInfo?.trackName ?? NA);
+        if (this.trackInfo) {
+            this.ctx.set('player.trackTitle', `$(book) ${ellipsis(this.trackInfo.trackName, 20)}`);
+        } else {
+            this.ctx.set('player.trackTitle', ``);
+        }
         const index = this.playList.findIndex((item) => item.trackId === this.currentTrack?.trackId);
         if (index !== -1) {
             this.ctx.set('player.hasPrev', index > 0);
@@ -182,11 +190,49 @@ export class Player extends Runnable {
         }
         const quickPick = new QuickPick();
         quickPick.render('Track Info', [
-            new QuickPickTreeLeaf(`Track Name: ${trackInfo?.trackName ?? NA}`),
-            new QuickPickTreeLeaf(`Album Name: ${trackInfo?.albumName ?? NA}`),
-            new QuickPickTreeLeaf(`Update time: ${trackInfo?.updateTime ?? NA}`),
-            new QuickPickTreeLeaf(`Duration: ${trackInfo?.duration ?? NA}`),
-            new QuickPickTreeLeaf(`Play Source: ${this.currentTrack?.src ?? NA}`),
+            new QuickPickTreeLeaf(`Track Name`, { description: trackInfo?.trackName ?? NA }),
+            new QuickPickTreeLeaf(`Album Name`, { description: trackInfo?.albumName ?? NA }),
+            new QuickPickTreeLeaf(`Update time`, { description: trackInfo?.updateTime ?? NA }),
+            new QuickPickTreeLeaf(`Duration`, {
+                description: formatDuration(trackInfo?.duration),
+            }),
+            new QuickPickTreeLeaf(`Play Source`, {
+                description: this.currentTrack?.src ?? 'null',
+                action: async (picker) => {
+                    if (this.currentTrack?.src) {
+                        picker.hide();
+                        const choice = await vscode.window.showInformationMessage(
+                            this.currentTrack.src,
+                            'Download',
+                            'Open in Browser'
+                        );
+                        if (choice === 'Download') {
+                            const uri = await vscode.window.showSaveDialog({
+                                defaultUri: vscode.Uri.parse(`~/${this.trackInfo?.trackName}.m4a`),
+                                title: this.trackInfo?.trackName,
+                            });
+                            if (uri?.fsPath) {
+                                try {
+                                    vscode.window.withProgress(
+                                        {
+                                            title: 'Downloading...',
+                                            location: vscode.ProgressLocation.Notification,
+                                        },
+                                        async () => {
+                                            const stream = await this.sdk.download(this.currentTrack!.src!);
+                                            await pipe(stream, createWriteStream(uri.fsPath, { encoding: 'binary' }));
+                                        }
+                                    );
+                                } catch (e) {
+                                    Logger.throw(e);
+                                }
+                            }
+                        } else if (choice === 'Open in Browser') {
+                            openUrl(this.currentTrack.src);
+                        }
+                    }
+                },
+            }),
         ]);
         quickPick.onDidHide(() => quickPick.dispose());
     }
@@ -199,7 +245,7 @@ export class Player extends Runnable {
             'Set Playback Speed',
             choices.map(
                 (speed) =>
-                    new QuickPickTreeLeaf(`${speed} X`, {
+                    new QuickPickTreeLeaf(`${speed} x`, {
                         action: async (pick) => {
                             try {
                                 await this.mpv.setSpeed(speed);

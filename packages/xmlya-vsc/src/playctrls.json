@@ -1,11 +1,44 @@
 [
-    { "key": "menu", "tooltip": "Ximalaya", "text": "$(broadcast)", "command": "xmlya.user.menu" },
     {
         "key": "track",
         "tooltip": "track info",
         "text": "{player.trackTitle}",
         "command": "xmlya.player.showTrackInfo",
         "when": "player.readyState == 'playing' || player.readyState == 'paused'"
+    },
+    {
+        "key": "prev",
+        "tooltip": "Previous track",
+        "text": "$(chevron-left)",
+        "command": "xmlya.player.goPrev",
+        "when": "player.hasPrev && player.readyState != 'unload'"
+    },
+    {
+        "key": "loading",
+        "tooltip": "Loading",
+        "text": "$(loading~spin)",
+        "when": "player.readyState == 'seeking' || player.readyState == 'loading'"
+    },
+    {
+        "key": "pause",
+        "tooltip": "Pause",
+        "text": "$(debug-pause)",
+        "command": "xmlya.player.pause",
+        "when": "player.readyState == 'playing'"
+    },
+    {
+        "key": "play",
+        "tooltip": "Play / Resume",
+        "text": "$(play)",
+        "command": "xmlya.player.resume",
+        "when": "player.readyState == 'paused'"
+    },
+    {
+        "key": "next",
+        "tooltip": "Next track",
+        "text": "$(chevron-right)",
+        "command": "xmlya.player.goNext",
+        "when": "player.hasNext && player.readyState != 'unload'"
     },
     {
         "key": "unmute",
@@ -31,44 +64,11 @@
         "when": "player.readyState != 'unload'"
     },
     {
-        "key": "prev",
-        "tooltip": "Previous track",
-        "text": "$(chevron-left)",
-        "command": "xmlya.player.goPrev",
-        "when": "player.hasPrev && player.readyState != 'unload'"
-    },
-    {
-        "key": "loading",
-        "tooltip": "Loading",
-        "text": "$(loading~spin)",
-        "when": "player.readyState == 'seeking' || player.readyState == 'loading'"
-    },
-    {
-        "key": "pause",
-        "tooltip": "Pause",
-        "text": "❙❙",
-        "command": "xmlya.player.pause",
-        "when": "player.readyState == 'playing'"
-    },
-    {
-        "key": "play",
-        "tooltip": "Play / Resume",
-        "text": "$(triangle-right)",
-        "command": "xmlya.player.resume",
-        "when": "player.readyState == 'paused'"
-    },
-    {
-        "key": "next",
-        "tooltip": "Next track",
-        "text": "$(chevron-right)",
-        "command": "xmlya.player.goNext",
-        "when": "player.hasNext && player.readyState != 'unload'"
-    },
-    {
         "key": "speed",
         "tooltip": "Set playback speed",
-        "text": "{player.speed} X",
+        "text": "{player.speed}x",
         "command": "xmlya.player.setSpeed",
         "when": "player.readyState != 'unload'"
-    }
+    },
+    { "key": "menu", "tooltip": "Ximalaya", "text": "$(broadcast)", "command": "xmlya.user.menu" }
 ]

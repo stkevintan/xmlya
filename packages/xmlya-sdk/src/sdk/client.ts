@@ -17,7 +17,7 @@ export interface IClient {
         options?: OverrideOptions
     ): Promise<ResBody<T> & R>;
     get: <T>(url: string, params?: any) => Promise<T>;
-    getStream: (url: string, params?: Options['searchParams'], options?: OverrideOptions) => Duplex;
+    getStream: (url: string, params?: Options['searchParams'], options?: OverrideOptions) => Promise<Duplex>;
     // TODO: add other methods: post , delete
 }
 
@@ -26,7 +26,6 @@ const BaseHeaders = {
     'User-Agent':
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36 Edg/86.0.622.69',
     Referer: 'https://www.ximalaya.com',
-    Host: 'www.ximalaya.com',
     'Accept-Encoding': 'gzip, deflate, br',
     'Accept-Language': 'en,zh-CN;q=0.9,zh;q=0.8,en-GB;q=0.7,en-US;q=0.6,zh-TW;q=0.5,ja;q=0.4',
     'Cache-Control': 'no-cache',
@@ -34,8 +33,11 @@ const BaseHeaders = {
 /* eslint-enable @typescript-eslint/naming-convention */
 
 export interface IRequestOptions {
-    cookie?: string | (() => string);
+    cookie?: string | (() => string | undefined);
 }
+
+const baseURL = 'https://www.ximalaya.com';
+const getPrefixUrl = (url: string) => /^https?:\/\//.test(url) ? undefined : baseURL;
 
 export class Client implements IClient {
     protected readonly client: Got;
@@ -46,13 +48,13 @@ export class Client implements IClient {
             );
         }
         this.client = got.extend({
-            prefixUrl: 'https://www.ximalaya.com',
             headers: {
                 cookie: typeof options.cookie === 'function' ? options.cookie() : options.cookie,
                 ...BaseHeaders,
             },
             handlers: [
                 async (options, next) => {
+                    options.headers.Host = options.url.host;
                     if (options.prefixUrl === 'https://www.ximalaya.com' && options.url.pathname !== '/revision/time') {
                         options.headers['xm-sign'] = await this.getSign();
                     }
@@ -60,10 +62,6 @@ export class Client implements IClient {
                 },
             ],
         });
-    }
-
-    updateCookie(cookie?: string) {
-        this.options.cookie = cookie;
     }
 
     private async getSign(): Promise<string> {
@@ -92,7 +90,7 @@ export class Client implements IClient {
         options: OverrideOptions = {}
     ): Promise<ResBody<T> & R> {
         try {
-            const res = await this.client(url, { searchParams: params, ...options });
+            const res = await this.client(url, { prefixUrl: getPrefixUrl(url), searchParams: params, ...options });
             return this.parse<T, R>(res);
         } catch (e) {
             // re-pack the error
@@ -105,9 +103,9 @@ export class Client implements IClient {
         }
     }
 
-    getStream(url: string, params?: Options['searchParams'], options: OverrideOptions = {}): Duplex {
+    async getStream(url: string, params?: Options['searchParams'], options: OverrideOptions = {}): Promise<Duplex> {
         try {
-            const request = this.client.stream.get(url, { searchParams: params, ...options });
+            const request = this.client.stream.get(url, { searchParams: params, prefixUrl: getPrefixUrl(url), responseType: 'buffer', ...options });
             return request;
         } catch (e) {
             Error.captureStackTrace(e);

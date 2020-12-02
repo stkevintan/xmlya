@@ -1,4 +1,5 @@
-import { IndentChars } from './constant';
+import { spawn } from 'child_process';
+import { IndentChars, NA } from './constant';
 
 export type PromiseOrNot<T> = T | Promise<T>;
 export type Func<T extends Array<any>, R> = (...args: T) => R;
@@ -47,4 +48,46 @@ export function omitNillKeys<T>(obj: T): Partial<T> {
         }
     }
     return copy;
+}
+
+export function ellipsis(text: string, len: number) {
+    if (text.length <= len) return text;
+    return `${text.slice(0, len).trim()}...`;
+}
+
+export function formatDuration(sec?: number): string {
+    if (sec === undefined) return NA;
+    const segArr: number[] = [];
+    for (let i = 0; i < 2; i++) {
+        segArr.push(sec % 60);
+        sec = Math.floor(sec / 60);
+    }
+
+    const times: string[] = [];
+    for (let i = 1; i >= 0; i--) {
+        if (segArr[i] === 0) continue;
+        // left pad
+        times.push(`${segArr[i] + 100}`.substr(1));
+    }
+    return times.join(':');
+}
+
+export function openUrl(url: string): void {
+    let command = '';
+    switch (process.platform) {
+        case 'linux':
+            command = `xdg-open`;
+            break;
+        case 'darwin':
+            command = `open`;
+            break;
+        case 'win32':
+            command = `cmd /c start`;
+            break;
+        default:
+            throw new Error(`Platform ${process.platform} is not supported.`);
+    }
+    spawn(command, [url], {
+        detached: true,
+    }).unref();
 }

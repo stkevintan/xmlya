@@ -12,19 +12,10 @@ export class Program {
     private context: ContextService;
     constructor(_context: vscode.ExtensionContext) {
         this.context = new ContextService(_context);
-        const client = new Client({ cookie: Configuration.cookie });
+        const client = new Client({ cookie: () => Configuration.cookie });
         this.sdk = new XmlyaSDK(client);
         this.app = new App(this.sdk);
         this.player = new Player(this.sdk);
-
-        // auto update cookie settings to client.
-        this.context.subscriptions.push(
-            Configuration.onUpdate((changedKeys) => {
-                if (changedKeys.includes(ConfigKeys.Cookie)) {
-                    client.updateCookie(Configuration.cookie);
-                }
-            })
-        );
     }
 
     run() {

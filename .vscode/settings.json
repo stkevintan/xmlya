@@ -2,5 +2,8 @@
     "unitTestHelper.program": "${workspaceFolder}/node_modules/jest-cli/bin/jest.js",
     "unitTestHelper.cwd": "${workspaceFolder}/packages/xmlya-sdk",
     "unitTestHelper.debugArgs": ["-i ${filePath}", "-t ${testName}"],
-    "unitTestHelper.runArgs":["${filePath}", "-t ${testName}"]
+    "unitTestHelper.runArgs":["${filePath}", "-t ${testName}"],
+    "files.associations": {
+        "playctrls.json": "jsonc"
+    }
 }

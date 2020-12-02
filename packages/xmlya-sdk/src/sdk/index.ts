@@ -106,4 +106,8 @@ export class XmlyaSDK {
             sort: params.sort ?? SortOrder.asc,
         });
     };
+
+    download = async (url: string) => {
+        return await this.client.getStream(url);
+    };
 }

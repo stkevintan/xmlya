@@ -18,7 +18,7 @@ const config = {
     devtool: 'source-map',
     externals: {
         vscode: 'commonjs vscode', // the vscode-module is created on-the-fly and must be excluded. Add other modules that cannot be webpack'ed, 📖 -> https://webpack.js.org/configuration/externals/
-        speaker: 'commonjs speaker'
+        speaker: 'commonjs speaker',
     },
     resolve: {
         // support reading TypeScript and JavaScript files, 📖 -> https://github.com/TypeStrong/ts-loader
@@ -30,6 +30,12 @@ const config = {
     },
     module: {
         rules: [
+            {
+                test: /\.json$/,
+                exclude: /node_modules/,
+                use: [{ loader: 'json5-loader' }],
+                type: 'javascript/auto',
+            },
             {
                 test: /\.ts$/,
                 exclude: /node_modules/,
