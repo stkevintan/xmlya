@@ -11,3 +11,14 @@ A project about Ximalaya(喜马拉雅) FM:
 ![quick-pick](https://github.com/stkevintan/xmlya/blob/master/images/quickpick.png?raw=true)
 
 ![status-bar](https://github.com/stkevintan/xmlya/blob/master/images/statusbar.png?raw=true)
+
+
+## Feature / TODO
+
+- [x]  No webview needed, no manual lib replacement.
+- [x]  vip track decode and download.
+- [x]  pagination and sort order support.
+- [x]  login support with history / subscription / favorite / purchased.
+- [x]  powerful playback controls: volume, mute, speed, seek, auto-skip head and tail...
+- [x]  highly-customizable status bar buttons (see [configuration]()).
+- [ ]  show comments
