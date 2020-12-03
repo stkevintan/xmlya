@@ -16,16 +16,16 @@ export class App extends Runnable {
     async renderHome() {
         this.quickPick.render(`Menu`, [
             new QuickPickTreeLeaf(`$(${PlayHistoryIcon}) Play History`, {
-                action: () => this.renderPlayHistory(),
+                onClick: () => this.renderPlayHistory(),
             }),
             new QuickPickTreeLeaf(`$(${SubscriptionsIcon}) Subscriptions`, {
-                action: () => this.renderSubscriptions(),
+                onClick: () => this.renderSubscriptions(),
             }),
             new QuickPickTreeLeaf(`$(${FavoritesIcon}) Favorites`, {
-                action: () => this.renderFavorites(),
+                onClick: () => this.renderFavorites(),
             }),
             new QuickPickTreeLeaf(`$(${PurchasedIcon}) Purchased Albums`, {
-                action: () => this.renderPurchasedAlbums(),
+                onClick: () => this.renderPurchasedAlbums(),
             }),
         ]);
     }
@@ -52,7 +52,7 @@ export class App extends Runnable {
                                 new QuickPickTreeLeaf(entry.itemTitle, {
                                     description: entry.startedAtFormatText,
                                     detail: entry.childTitle,
-                                    action: async (picker) => {
+                                    onClick: async (picker) => {
                                         picker.hide();
                                         vscode.commands.executeCommand(
                                             'xmlya.player.playTrack',
@@ -79,7 +79,7 @@ export class App extends Runnable {
                     new QuickPickTreeLeaf(album.title, {
                         detail: album.description,
                         description: album.subTitle,
-                        action: () => {
+                        onClick: () => {
                             this.renderAlbum(album);
                         },
                     })
@@ -88,27 +88,31 @@ export class App extends Runnable {
     }
 
     @command('user.favorites')
-    async renderFavorites(params?: IPaginator) {
+    async renderFavorites(params?: IPaginator, bySelf = false) {
         const title = 'Favorites';
         this.quickPick.loading(title);
         const favorites = await this.sdk.getFavorites(params);
-        this.quickPick.render(title, {
-            items: favorites.tracksList.map(
-                (track) =>
-                    new QuickPickTreeLeaf(track.trackTitle, {
-                        description: track.trackDuration,
-                        detail: track.albumName,
-                        action: (picker) => {
-                            picker.hide();
-                            vscode.commands.executeCommand('xmlya.player.playTrack', track.trackId);
-                        },
-                    })
-            ),
-            pagination: favorites,
-            onPageChange: (pageNum) => {
-                this.renderFavorites({ pageNum, pageSize: params?.pageSize });
+        this.quickPick.render(
+            title,
+            {
+                items: favorites.tracksList.map(
+                    (track) =>
+                        new QuickPickTreeLeaf(track.trackTitle, {
+                            description: track.trackDuration,
+                            detail: track.albumName,
+                            onClick: (picker) => {
+                                picker.hide();
+                                vscode.commands.executeCommand('xmlya.player.playTrack', track.trackId);
+                            },
+                        })
+                ),
+                pagination: favorites,
+                onPageChange: (pageNum) => {
+                    this.renderFavorites({ pageNum, pageSize: params?.pageSize }, true);
+                },
             },
-        });
+            bySelf ? 'replace' : 'push'
+        );
     }
 
     @command('user.purchasedAlbums')
@@ -122,7 +126,7 @@ export class App extends Runnable {
                     new QuickPickTreeLeaf(album.title, {
                         description: album.subTitle,
                         detail: album.description,
-                        action: () => {
+                        onClick: () => {
                             this.renderAlbum(album);
                         },
                     })
@@ -130,28 +134,32 @@ export class App extends Runnable {
         });
     }
 
-    async renderAlbum(album: IAlbum, params?: ISortablePaginator) {
+    async renderAlbum(album: IAlbum, params?: ISortablePaginator, bySelf = false) {
         const title = `${album.title} (${album.subTitle})`;
         this.quickPick.loading(title);
         const { tracks, pageNum, pageSize, totalCount, sort } = await this.sdk.getTracksOfAlbum({
             albumId: album.id,
             ...params,
         });
-        this.quickPick.render(title, {
-            items: tracks.map(
-                (track) =>
-                    new QuickPickTreeLeaf(track.title, {
-                        description: track.createDateFormat,
-                        action: (picker) => {
-                            picker.hide();
-                            vscode.commands.executeCommand('xmlya.player.playTrack', track.trackId, album.id);
-                        },
-                    })
-            ),
-            sort,
-            pagination: { pageNum, pageSize, totalCount },
-            onPageChange: (pageNum) => this.renderAlbum(album, { ...params, pageNum }),
-            onSortChange: (sort) => this.renderAlbum(album, { ...params, sort, pageNum: 1 }),
-        });
+        this.quickPick.render(
+            title,
+            {
+                items: tracks.map(
+                    (track) =>
+                        new QuickPickTreeLeaf(track.title, {
+                            description: track.createDateFormat,
+                            onClick: (picker) => {
+                                picker.hide();
+                                vscode.commands.executeCommand('xmlya.player.playTrack', track.trackId, album.id);
+                            },
+                        })
+                ),
+                sort,
+                pagination: { pageNum, pageSize, totalCount },
+                onPageChange: (pageNum) => this.renderAlbum(album, { ...params, pageNum }, true),
+                onSortChange: (sort) => this.renderAlbum(album, { ...params, sort, pageNum: 1 }, true),
+            },
+            bySelf ? 'replace' : 'push'
+        );
     }
 }

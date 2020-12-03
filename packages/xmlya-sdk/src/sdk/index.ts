@@ -79,13 +79,11 @@ export class XmlyaSDK {
             {
                 trackQualityLevel: 0,
                 device: 'pc',
-                // eslint-disable-next-line @typescript-eslint/naming-convention
                 th_engine: 'encrypt',
                 isBackend: false,
             },
             {
                 headers: {
-                    // eslint-disable-next-line @typescript-eslint/naming-convention
                     Host: 'mpay.ximalaya.com',
                 },
                 prefixUrl: 'https://mpay.ximalaya.com',

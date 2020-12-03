@@ -13,7 +13,7 @@ export interface IRenderOptions {
 
 export interface IQuickPickItem extends vscode.QuickPickItem {
     readonly tag: 'leaf' | 'parent';
-    action?: (picker: QuickPick) => void | Promise<void>;
+    onClick?: (picker: QuickPick) => void | Promise<void>;
 }
 
 export class QuickPickTreeLeaf {
@@ -55,7 +55,7 @@ export class QuickPickTreeParent {
         tag: this.tag,
         label: leftPad(`$(${this.toggleIcon}) ${this.label}`, indent)!,
         detail: leftPad(this.properties.detail, indent),
-        action: (picker) => {
+        onClick: (picker) => {
             this.expanded = !this.expanded;
             picker.repaint();
         },
@@ -79,24 +79,28 @@ export class CtrlButton implements vscode.QuickInputButton {
     }
 }
 
-export class QuickPick extends vscode.EventEmitter<CtrlButton> {
-    private readonly quickPick;
+type HistoryAction = 'replace' | 'push' | 'ignore';
 
+export class QuickPick extends vscode.Disposable {
+    private readonly quickPick;
     private disposables: vscode.Disposable[] = [];
     constructor() {
-        super();
+        super(() => {
+            this.eventHandler?.dispose();
+            vscode.Disposable.from(...this.disposables, this.quickPick).dispose();
+        });
         this.quickPick = vscode.window.createQuickPick<IQuickPickItem>();
         this.quickPick.canSelectMany = false;
         this.quickPick.matchOnDescription = true;
         this.quickPick.matchOnDetail = true;
+        this.disposables.push(this.quickPick.onDidHide(() => (this.historyStack = [])));
         this.disposables.push(this.quickPick.onDidAccept(this.onDidAccept));
-        this.disposables.push(this.quickPick.onDidTriggerButton(this.onDidTriggerButton));
     }
 
     private onDidAccept = async () => {
         const item = this.quickPick.selectedItems[0];
-        if (typeof item.action === 'function' && !this.quickPick.busy) {
-            const thenable = item.action(this);
+        if (typeof item.onClick === 'function' && !this.quickPick.busy) {
+            const thenable = item.onClick(this);
             if (thenable && 'then' in thenable) {
                 this.quickPick.busy = true;
                 await thenable;
@@ -105,10 +109,12 @@ export class QuickPick extends vscode.EventEmitter<CtrlButton> {
         }
     };
 
-    private onDidTriggerButton = (button: vscode.QuickInputButton) => {
-        if (button instanceof CtrlButton) {
-            this.fire(button);
-        }
+    private onDidTriggerButton = (cb: Callback<CtrlButton>) => {
+        return this.quickPick.onDidTriggerButton((button) => {
+            if (button instanceof CtrlButton) {
+                cb(button);
+            }
+        });
     };
 
     setBusy(busy: boolean = true): void {
@@ -125,23 +131,43 @@ export class QuickPick extends vscode.EventEmitter<CtrlButton> {
 
     repaint = () => {
         this.quickPick.busy = false;
-        this.quickPick.items = this.flattenTree(this.curTreeItems);
+        this.quickPick.items = this.quickPick.items
+            .filter((item) => item.alwaysShow)
+            .concat(this.flattenTree(this.curTreeItems));
     };
 
     private curTreeItems: QuickPickTreeItem[] = [];
     private eventHandler?: vscode.Disposable;
 
-    render(title: string): void;
-    render(title: string, items: QuickPickTreeItem[]): void;
-    render(title: string, options: IRenderOptions): void;
-    render(title: string, itemsOrOptions?: IRenderOptions | QuickPickTreeItem[]): void {
+    private historyStack: [string, IRenderOptions][] = [];
+
+    render(title: string, action?: HistoryAction): void;
+    render(title: string, items: QuickPickTreeItem[], action?: HistoryAction): void;
+    render(title: string, options: IRenderOptions, action?: HistoryAction): void;
+    render(
+        title: string,
+        param?: HistoryAction | IRenderOptions | QuickPickTreeItem[],
+        action: HistoryAction | null = 'push'
+    ): void {
         let options: IRenderOptions;
-        if (!itemsOrOptions) {
+        if (!param) {
             options = { items: [] };
-        } else if (Array.isArray(itemsOrOptions)) {
-            options = { items: itemsOrOptions };
+        } else if (typeof param === 'string') {
+            options = { items: [] };
+            action = param;
+        } else if (Array.isArray(param)) {
+            options = { items: param };
         } else {
-            options = itemsOrOptions;
+            options = param;
+        }
+
+        if (action === 'push') {
+            this.historyStack.push([title, options]);
+        } else if (action === 'replace') {
+            if (this.historyStack.length > 0) {
+                this.historyStack.pop();
+            }
+            this.historyStack.push([title, options]);
         }
 
         const { items, pagination, sort, onPageChange, onSortChange } = options;
@@ -151,13 +177,33 @@ export class QuickPick extends vscode.EventEmitter<CtrlButton> {
         } else {
             this.removePagination();
         }
+
         this.curTreeItems = items;
         this.quickPick.busy = false;
         this.quickPick.value = '';
         this.quickPick.enabled = true;
         this.quickPick.placeholder = title;
-        this.quickPick.items = this.flattenTree(items);
+        const actions = action === 'ignore' ? [] : this.createActions();
+        this.quickPick.items = this.flattenTree([...actions, ...items]);
         this.quickPick.show();
+    }
+
+    private createActions(): QuickPickTreeItem[] {
+        // history stack should always have one item (the current one);
+        if (this.historyStack.length === 1) return [];
+
+        return [
+            new QuickPickTreeLeaf('$(arrow-small-left)', {
+                description: 'Go back',
+                alwaysShow: true,
+                onClick: () => {
+                    if (this.quickPick.busy) return;
+                    this.historyStack.pop()!;
+                    const [title, options] = this.historyStack[this.historyStack.length - 1];
+                    this.render(title, options, null as any);
+                },
+            }),
+        ];
     }
 
     onDidHide = (cb: Callback<void>) => this.quickPick.onDidHide(cb);
@@ -181,7 +227,7 @@ export class QuickPick extends vscode.EventEmitter<CtrlButton> {
         ].filter((x): x is CtrlButton => !!x);
 
         this.eventHandler?.dispose();
-        this.eventHandler = this.event((button) => {
+        this.eventHandler = this.onDidTriggerButton((button) => {
             switch (button) {
                 case CtrlButton.Prev:
                     return onPageChange?.(pageNum - 1);
@@ -204,7 +250,7 @@ export class QuickPick extends vscode.EventEmitter<CtrlButton> {
     };
 
     loading(title?: string) {
-        this.render(title || '', [LoadingTreeItem]);
+        this.render(title || '', [LoadingTreeItem], 'ignore');
         this.quickPick.enabled = false;
         this.quickPick.busy = true;
     }
@@ -225,10 +271,5 @@ export class QuickPick extends vscode.EventEmitter<CtrlButton> {
         return items;
     };
 
-    dispose() {
-        super.dispose();
-        this.disposables.map((disposable) => disposable.dispose());
-        this.eventHandler?.dispose();
-        this.quickPick.dispose();
-    }
+    dispose() {}
 }

@@ -134,7 +134,7 @@ export class Player extends Runnable {
         }
         const index = this.playList.findIndex((item) => item.trackId === this.currentTrack?.trackId);
         if (index !== -1) {
-            this.ctx.set('player.hasPrev', index > 0);
+            this.ctx.set('player.hasPrev', index > 0 || this.playList[0].index !== 1);
             this.ctx.set('player.hasNext', index < this.playList.length - 1 || this.playContext.hasMore);
         } else {
             this.ctx.set('player.hasPrev', false);
@@ -198,7 +198,7 @@ export class Player extends Runnable {
             }),
             new QuickPickTreeLeaf(`Play Source`, {
                 description: this.currentTrack?.src ?? 'null',
-                action: async (picker) => {
+                onClick: async (picker) => {
                     if (this.currentTrack?.src) {
                         picker.hide();
                         const choice = await vscode.window.showInformationMessage(
@@ -246,12 +246,9 @@ export class Player extends Runnable {
             choices.map(
                 (speed) =>
                     new QuickPickTreeLeaf(`${speed} x`, {
-                        action: async (pick) => {
-                            try {
-                                await this.mpv.setSpeed(speed);
-                            } finally {
-                                pick.dispose();
-                            }
+                        onClick: async (picker) => {
+                            picker.hide();
+                            await this.mpv.setSpeed(speed);
                         },
                     })
             )
@@ -277,6 +274,10 @@ export class Player extends Runnable {
         if (index > 0) {
             const prevTrack = this.playList[index - 1];
             await this.playTrack(prevTrack.trackId, prevTrack.albumId);
+        }
+        if (this.trackInfo?.index ?? 1 > 1) {
+            this.playContext = await this.sdk.getContextTracks({ trackId: this.currentTrack!.trackId });
+            await this.goPrev();
         }
     }
 }
