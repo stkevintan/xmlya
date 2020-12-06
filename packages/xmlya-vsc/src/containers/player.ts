@@ -191,6 +191,10 @@ export class Player extends Runnable {
 
     private traceContext?: { trackId: number; start: () => void; stop: () => void };
     private async toggleTrace(on: boolean = true) {
+        // if cookie is not provided. trace is not usable.
+        if (!Configuration.cookie) {
+            return;
+        }
         if (!on) {
             this.traceContext?.stop();
             return;

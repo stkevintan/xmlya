@@ -39,9 +39,6 @@ export class Configuration {
 
     static get cookie(): string | undefined {
         const ret = this.get(ConfigKeys.Cookie);
-        if (ret === undefined) {
-            Logger.warn('Please set `xmlya.cookie` to archive best user experience');
-        }
         return ret;
     }
 

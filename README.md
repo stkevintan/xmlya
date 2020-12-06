@@ -23,5 +23,6 @@ A project about Ximalaya(喜马拉雅) FM:
 - [x]  highly-customizable status bar buttons (see [configuration]()).
 - [x]  setting persistent
 - [x]  show comments
+- [x]  save play records to server instantly (login required)
 - []   i18n 
 - []   keyboard shortcuts
