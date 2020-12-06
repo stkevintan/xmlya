@@ -9,6 +9,8 @@ export enum ConfigKeys {
     PlayCtrls = 'xmlya.playctrls',
     PlaybackStart = 'xmlya.playbackStart',
     PlaybackEnd = 'xmlya.playbackEnd',
+    MpvArguments = 'xmlya.mpvArguments',
+    StatusBarItemBase = 'xmlya.statusBarItemBase',
 }
 
 export class Configuration {
@@ -45,6 +47,14 @@ export class Configuration {
 
     static get mpvBinary(): string | undefined {
         return this.get(ConfigKeys.MpvBinary);
+    }
+
+    static get mpvAguments(): string[] {
+        return this.get<string[]>(ConfigKeys.MpvArguments) ?? [];
+    }
+
+    static get statusBarItemBase(): number {
+        return this.get<number>(ConfigKeys.StatusBarItemBase) ?? -100;
     }
 
     static get isDebugColorOverrided(): boolean {

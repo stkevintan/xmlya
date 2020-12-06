@@ -37,16 +37,20 @@ export class Player extends Runnable {
     initialize(context: ContextService) {
         this.mpv = new Mpv({
             mpvBinary: Configuration.mpvBinary,
+            args: Configuration.mpvAguments,
+            volume: context.globalState.get('xmlya.player.volume'),
+            speed: context.globalState.get('xmlya.player.speed'),
+            mute: context.globalState.get('xmlya.player.isMuted'),
             logLevel: 'debug',
             logger: console.log,
         });
+
         // put context to this.
         this.ctx = context;
-
         const syncCtxRefs = this.syncContext(context);
         const syncConfRefs = this.syncConf();
         // construct the status bar.
-        const statusBar = new StatusBar(controls, -100);
+        const statusBar = new StatusBar(controls, Configuration.statusBarItemBase);
         // render in current context
         statusBar.renderWith(context, 'player');
         return vscode.Disposable.from(
@@ -92,6 +96,7 @@ export class Player extends Runnable {
             }),
             this.mpv.watchProp<boolean>('mute', (mute) => {
                 ctx.set('player.isMuted', !!mute);
+                ctx.globalState.update('xmlya.player.isMuted', !!mute);
             }),
 
             this.mpv.watchProp<boolean>('seek', (seeking) => {
@@ -99,9 +104,11 @@ export class Player extends Runnable {
             }),
             this.mpv.watchProp<number>('volume', (volume) => {
                 ctx.set('player.volume', volume);
+                ctx.globalState.update('xmlya.player.volume', volume);
             }),
             this.mpv.watchProp<number>('speed', (speed) => {
                 ctx.set('player.speed', speed);
+                ctx.globalState.update('xmlya.player.speed', speed);
             }),
             this.mpv.watchProp<number>(
                 'percent-pos',
@@ -203,25 +210,26 @@ export class Player extends Runnable {
                       description: 'Unmute',
                       alwaysShow: true,
                       onClick: () => {
-                          this.toggleMute(false);
                           quickPick.hide();
+                          this.toggleMute(false);
                       },
                   })
                 : new QuickPickTreeLeaf('$(mute)', {
                       description: 'Mute',
                       alwaysShow: true,
                       onClick: () => {
-                          this.toggleMute(true);
                           quickPick.hide();
+                          this.toggleMute(true);
                       },
                   }),
             ...(value !== undefined
                 ? [
-                      new QuickPickTreeLeaf(`${value}`, {
+                      new QuickPickTreeLeaf(`$(symbol-variable)`, {
+                          description: `${value}`,
                           onClick: () => {
+                              quickPick.hide();
                               this.mpv.toggleMute(false);
                               this.mpv.setVolume(value);
-                              quickPick.hide();
                           },
                       }),
                   ]
@@ -232,9 +240,9 @@ export class Player extends Runnable {
                               active: (10 - i) * 10 === this.ctx.get('player.volume'),
                               description: `${(10 - i) * 10}`,
                               onClick: () => {
+                                  quickPick.hide();
                                   this.mpv.toggleMute(false);
                                   this.mpv.setVolume((10 - i) * 10);
-                                  quickPick.hide();
                               },
                           })
                   )),
@@ -248,10 +256,6 @@ export class Player extends Runnable {
                 quickPick.repaint(generateVols());
             }
         });
-        // const volume = this.ctx.get<string | number>('player.volume');
-        // if (typeof volume === 'number') {
-        //     this.mpv.setVolume((volume + 20) % 120);
-        // }
     }
 
     @command('player.showTrackInfo')
@@ -398,7 +402,7 @@ export class Player extends Runnable {
 
     @command('player.setSpeed')
     setSpeed() {
-        const quickPick = new QuickPick();
+        const quickPick = new QuickPick({ disposeOnHide: true });
         const choices = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3];
         quickPick.render(
             'Set Playback Speed',
@@ -414,7 +418,6 @@ export class Player extends Runnable {
                     })
             )
         );
-        quickPick.onDidHide(() => quickPick.dispose());
     }
 
     @command('player.goNext', 'Loading next track...')

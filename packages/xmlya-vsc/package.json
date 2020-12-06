@@ -30,7 +30,13 @@
                     "xmlya.mpvBinary": {
                         "type": "string",
                         "default": "",
-                        "description": "absolute path for mpv binary",
+                        "description": "absolute path for mpv binary (need restart to take effect)",
+                        "scope": "application"
+                    },
+                    "xmlya.mpvArguments": {
+                        "type": "array",
+                        "default": [],
+                        "description": "extra arguments for mpv (need restart to take effect)",
                         "scope": "application"
                     },
                     "xmlya.playctrls": {
@@ -49,6 +55,12 @@
                         "type": "number",
                         "default": 0,
                         "description": "end offset of playback, in seconds",
+                        "scope": "application"
+                    },
+                    "xmlya.statusBarItemBase": {
+                        "type": "number",
+                        "default": -100,
+                        "description": "base priority of items in status bar",
                         "scope": "application"
                     }
                 }

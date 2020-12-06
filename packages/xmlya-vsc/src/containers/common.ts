@@ -71,7 +71,7 @@ export class Common extends Runnable {
                     (item) =>
                         new QuickPickTreeLeaf(item.title, {
                             description: item.subTitle,
-                            detail: `$(megaphone) item.description`,
+                            detail: `${item.description}`,
                             onClick: () => {
                                 quickPick.hide();
                                 this.showAlbumTracks(quickPick, item);

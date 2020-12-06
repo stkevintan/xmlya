@@ -1,6 +1,6 @@
 import { IPagination, SortOrder } from '@xmlya/sdk';
 import { Callback, leftPad } from 'src/lib';
-import { ToggleOnIcon, ToggleOffIcon, PrevPageIcon, NextPageIcon, AscOrderIcon, DescOrderIcon } from 'src/lib/constant';
+import { ToggleOnIcon, ToggleOffIcon, PrevPageIcon, NextPageIcon } from 'src/lib/constant';
 import * as vscode from 'vscode';
 
 export interface IRenderOptions {
@@ -73,16 +73,17 @@ export class QuickPickTreeAction extends QuickPickTreeLeaf {
 export type QuickPickTreeItem = QuickPickTreeParent | QuickPickTreeLeaf | QuickPickTreeAction;
 
 export class CtrlButton implements vscode.QuickInputButton {
-    static readonly Asc = new CtrlButton(AscOrderIcon, 'asc order');
-    static readonly Desc = new CtrlButton(DescOrderIcon, 'desc order');
+    static readonly Asc = new CtrlButton('triangle-up', 'asc order');
+    static readonly Desc = new CtrlButton('triangle-down', 'desc order');
     static readonly Prev = new CtrlButton(PrevPageIcon, 'previous page');
     static readonly Next = new CtrlButton(NextPageIcon, 'next page');
 
-    readonly iconPath: vscode.ThemeIcon;
     readonly tooltip?: string;
 
-    constructor(icon: string, tooltip?: string) {
-        this.iconPath = new vscode.ThemeIcon(icon);
+    iconPath: vscode.Uri | { light: vscode.Uri; dark: vscode.Uri } | vscode.ThemeIcon;
+
+    constructor(icon: string | vscode.Uri | { light: vscode.Uri; dark: vscode.Uri }, tooltip?: string) {
+        this.iconPath = typeof icon === 'string' ? new vscode.ThemeIcon(icon) : icon;
         this.tooltip = tooltip;
     }
 }

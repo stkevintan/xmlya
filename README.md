@@ -21,4 +21,7 @@ A project about Ximalaya(喜马拉雅) FM:
 - [x]  login support with history / subscription / favorite / purchased.
 - [x]  powerful playback controls: volume, mute, speed, seek, auto-skip head and tail...
 - [x]  highly-customizable status bar buttons (see [configuration]()).
-- [ ]  show comments
+- [x]  setting persistent
+- [x]  show comments
+- []   i18n 
+- []   keyboard shortcuts
