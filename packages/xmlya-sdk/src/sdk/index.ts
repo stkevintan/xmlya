@@ -13,6 +13,8 @@ import {
     ITracksInAlbum,
     SortOrder,
     ISortablePaginator,
+    IUserPub,
+    IUserInfo,
 } from '../types';
 import { IClient } from './client';
 import { decodeNonFreeAudioSrc } from '../lib/decoder';
@@ -48,6 +50,16 @@ export class XmlyaSDK {
         // rename trackTotalCount to totalCount
         ret.tracksInfo.totalCount = (ret.tracksInfo as any).trackTotalCount;
         return ret;
+    };
+
+    // user publish info
+    getUserPublish = async (params: { uid: number }): Promise<IUserPub> => {
+        const ret = await this.client.get<IUserPub>('revision/user', params);
+        return ret;
+    };
+
+    getUserInfo = async (params: { uid: number }): Promise<IUserInfo> => {
+        return await this.client.get('revision/user/basic', params);
     };
 
     getTracksOfAlbum = async (params: ISortablePaginator & { albumId: number }): Promise<ITracksInAlbum> => {
@@ -96,12 +108,27 @@ export class XmlyaSDK {
         return await decodeNonFreeAudioSrc(audio);
     };
 
-    getContextTracks = (params: { trackId: number; sort?: SortOrder; size?: number }) => {
+    getContextTracks = (
+        params:
+            | { albumId: number; index: number, sort?: SortOrder; size?: number }
+            | { trackId: number; sort?: SortOrder; size?: number }
+    ) => {
+        const sort = params.sort ?? SortOrder.asc;
+        const size = params.size ?? 30;
+        if ('albumId' in params) {
+            return this.client.get<IContextTracks>('revision/play/v1/show', {
+                id: params.albumId,
+                num: Math.ceil(params.index / size),
+                sort,
+                size,
+                ptype: 0,
+            });
+        }
         return this.client.get<IContextTracks>('revision/play/v1/show', {
             id: params.trackId,
-            size: params.size ?? 30,
+            sort,
+            size,
             ptype: 1,
-            sort: params.sort ?? SortOrder.asc,
         });
     };
 

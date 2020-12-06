@@ -1,6 +1,6 @@
 import { ConfigKeys, Configuration } from 'src/configuration';
 import { ContextService, When } from 'src/context';
-import { debounce } from 'ts-debounce';
+import { debounce } from 'throttle-debounce-ts';
 import * as vscode from 'vscode';
 
 export interface IStatusBarItemSpec {
@@ -40,11 +40,11 @@ export class StatusBar extends vscode.Disposable {
         this.repaint(ctx);
         this.subscriptions.push(
             ctx.onChange(
-                debounce((keys) => {
+                debounce(100, (keys: string[]) => {
                     if (this.matchScope(keys, scope)) {
                         this.repaint(ctx);
                     }
-                }, 50)
+                })
             )
         );
         this.subscriptions.push(

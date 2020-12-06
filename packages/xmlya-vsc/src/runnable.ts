@@ -70,7 +70,7 @@ export const command = (name: string, desc?: string) => <T extends Runnable, F e
 export abstract class Runnable {
     private locked = false;
     private release?: () => void;
-
+    private subs: vscode.Disposable[] = [];
     private lock(title: string) {
         if (this.locked) return;
         this.locked = true;
@@ -99,7 +99,17 @@ export abstract class Runnable {
 
     abstract initialize(context: ContextService): vscode.Disposable | undefined;
 
+    protected register<T extends vscode.Disposable>(x: T): T {
+        this.subs.push(x);
+        return x;
+    }
+
     runInContext(context: ContextService) {
+        context.subscriptions.push({
+            dispose: () => {
+                vscode.Disposable.from(...this.subs).dispose();
+            },
+        });
         const mayBeDisposable = this.initialize(context);
         if (mayBeDisposable) {
             context.subscriptions.push(mayBeDisposable);
@@ -113,7 +123,9 @@ export abstract class Runnable {
                     // TODO: add debounce if necessary.
                     if (title && this.locked) return;
                     try {
-                        this.lock(title);
+                        if (title) {
+                            this.lock(title);
+                        }
                         await (this as any)[command.propertyKey](...args);
                     } finally {
                         this.release?.();

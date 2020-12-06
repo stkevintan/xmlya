@@ -101,8 +101,8 @@
                 "category": "Ximalaya"
             },
             {
-                "title": "Loop Volume",
-                "command": "xmlya.player.loopVolume",
+                "title": "Set Volume",
+                "command": "xmlya.player.setVolume",
                 "category": "Ximalaya"
             },
             {
@@ -121,8 +121,38 @@
                 "category": "Ximalaya"
             },
             {
+                "title": "Show current play list",
+                "command": "xmlya.player.showPlaylist",
+                "category": "Ximalaya"
+            },
+            {
+                "title": "Show track audio url",
+                "command": "xmlya.player.showTrackUrl",
+                "category": "Ximalaya"
+            },
+            {
                 "title": "Set playback speed",
                 "command": "xmlya.player.setSpeed",
+                "category": "Ximalaya"
+            },
+            {
+                "title": "Toggle progress",
+                "command": "xmlya.player.toggleProgress",
+                "category": "Ximalaya"
+            },
+            {
+                "title": "Show album tracks",
+                "command": "xmlya.common.showAlbumTracks",
+                "category": "Ximalaya"
+            },
+            {
+                "title": "Show user",
+                "command": "xmlya.common.showUser",
+                "category": "Ximalaya"
+            },
+            {
+                "title": "View comments",
+                "command": "xmlya.player.viewComments",
                 "category": "Ximalaya"
             }
         ],
@@ -175,7 +205,7 @@
         "@xmlya/mpv": "^1.0.0",
         "@xmlya/sdk": "^1.0.0",
         "reflect-metadata": "^0.1.13",
-        "ts-debounce": "^2.0.1",
+        "throttle-debounce-ts": "^1.1.1",
         "vscode-test": "^1.4.1"
     }
 }

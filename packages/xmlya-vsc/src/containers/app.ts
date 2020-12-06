@@ -80,7 +80,7 @@ export class App extends Runnable {
                         detail: album.description,
                         description: album.subTitle,
                         onClick: () => {
-                            this.renderAlbum(album);
+                            vscode.commands.executeCommand('xmlya.common.showAlbumTracks', this.quickPick, album);
                         },
                     })
             )
@@ -127,39 +127,10 @@ export class App extends Runnable {
                         description: album.subTitle,
                         detail: album.description,
                         onClick: () => {
-                            this.renderAlbum(album);
+                            vscode.commands.executeCommand('xmlya.common.showAlbumTracks', this.quickPick, album);
                         },
                     })
             ),
         });
-    }
-
-    async renderAlbum(album: IAlbum, params?: ISortablePaginator, bySelf = false) {
-        const title = `${album.title} (${album.subTitle})`;
-        this.quickPick.loading(title);
-        const { tracks, pageNum, pageSize, totalCount, sort } = await this.sdk.getTracksOfAlbum({
-            albumId: album.id,
-            ...params,
-        });
-        this.quickPick.render(
-            title,
-            {
-                items: tracks.map(
-                    (track) =>
-                        new QuickPickTreeLeaf(track.title, {
-                            description: track.createDateFormat,
-                            onClick: (picker) => {
-                                picker.hide();
-                                vscode.commands.executeCommand('xmlya.player.playTrack', track.trackId, album.id);
-                            },
-                        })
-                ),
-                sort,
-                pagination: { pageNum, pageSize, totalCount },
-                onPageChange: (pageNum) => this.renderAlbum(album, { ...params, pageNum }, true),
-                onSortChange: (sort) => this.renderAlbum(album, { ...params, sort, pageNum: 1 }, true),
-            },
-            bySelf ? 'replace' : 'push'
-        );
     }
 }

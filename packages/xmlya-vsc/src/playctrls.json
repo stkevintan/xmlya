@@ -2,7 +2,7 @@
     {
         "key": "track",
         "tooltip": "track info",
-        "text": "{player.trackTitle}",
+        "text": "$(book) {player.trackTitle} - {player.percentPos}%",
         "command": "xmlya.player.showTrackInfo",
         "when": "player.readyState == 'playing' || player.readyState == 'paused'"
     },
@@ -44,31 +44,36 @@
         "key": "unmute",
         "tooltip": "Unmute",
         "text": "$(mute)",
-        "command": "xmlya.player.toggleMute",
-        "arguments": [false],
-        "when": "player.isMuted"
+        "command": "xmlya.player.setVolume",
+        "when": "player.isMuted && player.readyState != 'unload'"
     },
     {
         "key": "mute",
         "tooltip": "Mute",
-        "text": "$(unmute)",
-        "command": "xmlya.player.toggleMute",
-        "arguments": [true],
-        "when": "!player.isMuted"
+        "text": "$(unmute) {player.volume}",
+        "command": "xmlya.player.setVolume",
+        "when": "!player.isMuted && player.readyState != 'unload'"
     },
-    {
-        "key": "volume",
-        "tooltip": "Volume",
-        "text": "{player.volume}",
-        "command": "xmlya.player.loopVolume",
-        "when": "player.readyState != 'unload'"
-    },
+    // {
+    //     "key": "volume",
+    //     "tooltip": "Volume",
+    //     "text": "{player.volume}",
+    //     "command": "xmlya.player.loopVolume",
+    //     "when": "player.readyState != 'unload'"
+    // },
     {
         "key": "speed",
         "tooltip": "Set playback speed",
-        "text": "{player.speed}x",
+        "text": "$(symbol-event) {player.speed}x",
         "command": "xmlya.player.setSpeed",
         "when": "player.readyState != 'unload'"
+    },
+    {
+        "key": "playlist",
+        "tooltip": "playlist",
+        "text": "$(note)",
+        "command":"xmlya.player.showPlaylist",
+        "when": "player.readyState == 'paused' || player.readyState == 'playing'"
     },
     { "key": "menu", "tooltip": "Ximalaya", "text": "$(broadcast)", "command": "xmlya.user.menu" }
 ]

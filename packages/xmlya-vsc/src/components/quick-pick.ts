@@ -12,14 +12,17 @@ export interface IRenderOptions {
 }
 
 export interface IQuickPickItem extends vscode.QuickPickItem {
-    readonly tag: 'leaf' | 'parent';
+    tag: TreeItemTag;
     onClick?: (picker: QuickPick) => void | Promise<void>;
+    type?: string;
+    active?: boolean;
 }
 
-export class QuickPickTreeLeaf {
-    readonly tag = 'leaf';
-    constructor(public readonly label: string, private properties: Omit<IQuickPickItem, 'label' | 'tag'> = {}) {}
+type TreeItemTag = 'leaf' | 'parent' | 'action';
 
+export class QuickPickTreeLeaf {
+    constructor(public readonly label: string, private properties: Omit<IQuickPickItem, 'label' | 'tag'> = {}) {}
+    readonly tag: TreeItemTag = 'leaf';
     toQuickPickItem = (indent = 0): IQuickPickItem => ({
         ...this.properties,
         tag: this.tag,
@@ -28,12 +31,10 @@ export class QuickPickTreeLeaf {
     });
 }
 
-const LoadingTreeItem = new QuickPickTreeLeaf('Loading...');
+const LoadingTreeItem = new QuickPickTreeLeaf('$(loading~spin)', { description: 'Loading...' });
 
 export class QuickPickTreeParent {
     expanded = true;
-
-    readonly tag = 'parent';
 
     get children(): QuickPickTreeItem[] {
         return this.properties.children ?? [];
@@ -50,9 +51,12 @@ export class QuickPickTreeParent {
         return this.expanded ? ToggleOnIcon : ToggleOffIcon;
     }
 
+    readonly tag: TreeItemTag = 'parent';
+
     toQuickPickItem = (indent = 0): IQuickPickItem => ({
-        ...this.properties,
         tag: this.tag,
+        ...this.properties,
+        alwaysShow: true,
         label: leftPad(`$(${this.toggleIcon}) ${this.label}`, indent)!,
         detail: leftPad(this.properties.detail, indent),
         onClick: (picker) => {
@@ -62,7 +66,11 @@ export class QuickPickTreeParent {
     });
 }
 
-type QuickPickTreeItem = QuickPickTreeParent | QuickPickTreeLeaf;
+export class QuickPickTreeAction extends QuickPickTreeLeaf {
+    readonly tag: TreeItemTag = 'action';
+}
+
+export type QuickPickTreeItem = QuickPickTreeParent | QuickPickTreeLeaf | QuickPickTreeAction;
 
 export class CtrlButton implements vscode.QuickInputButton {
     static readonly Asc = new CtrlButton(AscOrderIcon, 'asc order');
@@ -84,7 +92,7 @@ type HistoryAction = 'replace' | 'push' | 'ignore';
 export class QuickPick extends vscode.Disposable {
     private readonly quickPick;
     private disposables: vscode.Disposable[] = [];
-    constructor() {
+    constructor({ disposeOnHide, ignoreFocusOut }: { disposeOnHide?: boolean; ignoreFocusOut?: boolean } = {}) {
         super(() => {
             this.eventHandler?.dispose();
             vscode.Disposable.from(...this.disposables, this.quickPick).dispose();
@@ -93,6 +101,12 @@ export class QuickPick extends vscode.Disposable {
         this.quickPick.canSelectMany = false;
         this.quickPick.matchOnDescription = true;
         this.quickPick.matchOnDetail = true;
+        if (ignoreFocusOut) {
+            this.quickPick.ignoreFocusOut = true;
+        }
+        if (disposeOnHide) {
+            this.disposables.push(this.quickPick.onDidHide(() => this.dispose()));
+        }
         this.disposables.push(this.quickPick.onDidHide(() => (this.historyStack = [])));
         this.disposables.push(this.quickPick.onDidAccept(this.onDidAccept));
     }
@@ -129,11 +143,15 @@ export class QuickPick extends vscode.Disposable {
         this.quickPick.hide();
     }
 
-    repaint = () => {
+    repaint = (items?: QuickPickTreeItem[]) => {
+        if (items) {
+            this.curTreeItems = items;
+        }
         this.quickPick.busy = false;
         this.quickPick.items = this.quickPick.items
-            .filter((item) => item.alwaysShow)
+            .filter((item) => item.tag === 'action')
             .concat(this.flattenTree(this.curTreeItems));
+        this.setActiveItems();
     };
 
     private curTreeItems: QuickPickTreeItem[] = [];
@@ -185,15 +203,22 @@ export class QuickPick extends vscode.Disposable {
         this.quickPick.placeholder = title;
         const actions = action === 'ignore' ? [] : this.createActions();
         this.quickPick.items = this.flattenTree([...actions, ...items]);
+        this.setActiveItems();
         this.quickPick.show();
     }
 
+    private setActiveItems() {
+        const activeItems = this.quickPick.items.filter((item) => item.active);
+        if (activeItems.length) {
+            this.quickPick.activeItems = activeItems;
+        }
+    }
     private createActions(): QuickPickTreeItem[] {
         // history stack should always have one item (the current one);
         if (this.historyStack.length === 1) return [];
 
         return [
-            new QuickPickTreeLeaf('$(arrow-small-left)', {
+            new QuickPickTreeAction('$(arrow-small-left)', {
                 description: 'Go back',
                 alwaysShow: true,
                 onClick: () => {
@@ -207,6 +232,7 @@ export class QuickPick extends vscode.Disposable {
     }
 
     onDidHide = (cb: Callback<void>) => this.quickPick.onDidHide(cb);
+    onDidChangeValue = (cb: Callback<string>) => this.quickPick.onDidChangeValue(cb);
 
     private renderPagination = (options: {
         pagination: IPagination;
@@ -258,7 +284,7 @@ export class QuickPick extends vscode.Disposable {
     private flattenTree = (treeItems: QuickPickTreeItem[], deep = 0): IQuickPickItem[] => {
         const items: IQuickPickItem[] = [];
         for (const treeItem of treeItems) {
-            if (treeItem.tag === 'parent') {
+            if (treeItem instanceof QuickPickTreeParent) {
                 const { children } = treeItem;
                 items.push(treeItem.toQuickPickItem(deep));
                 if (treeItem.expanded) {
@@ -270,6 +296,4 @@ export class QuickPick extends vscode.Disposable {
         }
         return items;
     };
-
-    dispose() {}
 }

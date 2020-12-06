@@ -1,23 +1,25 @@
 import * as vscode from 'vscode';
 import { command, Runnable } from '../runnable';
-import { IContextTracks, ITrackAudio } from '@xmlya/sdk';
+import { IContextTracks, IPaginator, ISortablePaginator, ITrackAudio } from '@xmlya/sdk';
 import { Logger } from '../lib/logger';
 import { ConfigKeys, Configuration } from '../configuration';
 import { StatusBar } from '../components/status-bar';
-import { ellipsis, formatDuration, NA, openUrl } from '../lib';
+import { Callback, ellipsis, formatDuration, NA, openUrl } from '../lib';
 import { Mpv } from '@xmlya/mpv';
-import { QuickPick, QuickPickTreeLeaf } from '../components/quick-pick';
+import { QuickPick, QuickPickTreeLeaf, QuickPickTreeParent } from '../components/quick-pick';
 import controls from '../playctrls.json';
 import { ContextService } from 'src/context';
 import { createWriteStream } from 'fs';
 import { pipeline } from 'stream';
 import { promisify } from 'util';
+import { throttle } from 'throttle-debounce-ts';
 const pipe = promisify(pipeline);
 
 export class Player extends Runnable {
     private playContext?: IContextTracks;
 
-    private currentTrack?: ITrackAudio;
+    private quickPick: QuickPick = new QuickPick();
+    private playingTrack?: ITrackAudio;
 
     private mpv!: Mpv;
 
@@ -27,9 +29,9 @@ export class Player extends Runnable {
         return this.playContext?.tracksAudioPlay ?? [];
     }
 
-    get trackInfo() {
-        if (this.currentTrack === undefined) return undefined;
-        return this.playList.find((track) => track.trackId === this.currentTrack?.trackId);
+    get playingTrackInfo() {
+        if (this.playingTrack === undefined) return undefined;
+        return this.playList.find((track) => track.trackId === this.playingTrack?.trackId);
     }
 
     initialize(context: ContextService) {
@@ -47,7 +49,13 @@ export class Player extends Runnable {
         const statusBar = new StatusBar(controls, -100);
         // render in current context
         statusBar.renderWith(context, 'player');
-        return vscode.Disposable.from(...syncCtxRefs, ...syncConfRefs, statusBar);
+        return vscode.Disposable.from(
+            ...syncCtxRefs,
+            ...syncConfRefs,
+            statusBar,
+            { dispose: () => this.progressToken?.() },
+            { dispose: () => this.quickPick?.dispose() }
+        );
     }
 
     private syncConf(): vscode.Disposable[] {
@@ -95,6 +103,14 @@ export class Player extends Runnable {
             this.mpv.watchProp<number>('speed', (speed) => {
                 ctx.set('player.speed', speed);
             }),
+            this.mpv.watchProp<number>(
+                'percent-pos',
+                throttle(1000, (percent: number) => {
+                    percent = Math.floor(percent);
+                    const ret = Number.isNaN(percent) ? undefined : percent;
+                    ctx.set('player.percentPos', ret);
+                })
+            ),
             this.mpv.onEvent(({ event, ...data }) => {
                 switch (event) {
                     case 'start-file':
@@ -121,18 +137,19 @@ export class Player extends Runnable {
     @command('player.playTrack', 'Loading track...')
     async playTrack(trackId: number, albumId: number) {
         if (trackId === undefined || albumId === undefined) return;
-        if (this.playContext === undefined || this.trackInfo?.albumId !== albumId) {
+        this.playingTrack = await this.sdk.getTrackAudio({ trackId });
+        Logger.assert(this.playingTrack, 'No track to play.');
+        // if playContext is outdated.
+        if (this.playContext === undefined || this.playingTrackInfo?.albumId !== albumId) {
             this.playContext = await this.sdk.getContextTracks({ trackId });
         }
-        this.currentTrack = await this.sdk.getTrackAudio({ trackId });
 
-        Logger.assert(this.currentTrack, 'No track to play.');
-        if (this.trackInfo) {
-            this.ctx.set('player.trackTitle', `$(book) ${ellipsis(this.trackInfo.trackName, 20)}`);
+        if (this.playingTrackInfo) {
+            this.ctx.set('player.trackTitle', ellipsis(this.playingTrackInfo.trackName, 20));
         } else {
             this.ctx.set('player.trackTitle', ``);
         }
-        const index = this.playList.findIndex((item) => item.trackId === this.currentTrack?.trackId);
+        const index = this.playList.findIndex((item) => item.trackId === this.playingTrack?.trackId);
         if (index !== -1) {
             this.ctx.set('player.hasPrev', index > 0 || this.playList[0].index !== 1);
             this.ctx.set('player.hasNext', index < this.playList.length - 1 || this.playContext.hasMore);
@@ -143,18 +160,21 @@ export class Player extends Runnable {
         // set loading state ahead of time.
         try {
             this.ctx.set('player.readyState', 'loading');
-            if (!this.currentTrack.src) {
-                Logger.assertTrue(this.currentTrack.canPlay, `Track ${this.trackInfo?.trackName} is not playable.`);
-                this.currentTrack.src = await this.sdk.getNonFreeTrackAudioSrc({ trackId: this.currentTrack.trackId });
+            if (!this.playingTrack.src) {
+                Logger.assertTrue(
+                    this.playingTrack.canPlay,
+                    `Track ${this.playingTrackInfo?.trackName} is not playable.`
+                );
+                this.playingTrack.src = await this.sdk.getNonFreeTrackAudioSrc({ trackId: this.playingTrack.trackId });
             }
 
-            Logger.assert(this.currentTrack.src, 'Get audio source failed');
+            Logger.assert(this.playingTrack.src, 'Get audio source failed');
         } catch (e) {
             this.ctx.set('player.readyState', 'error');
             throw e;
         }
 
-        await this.mpv.play(this.currentTrack.src);
+        await this.mpv.play(this.playingTrack.src);
         // do not need await.
         this.resume();
     }
@@ -174,67 +194,206 @@ export class Player extends Runnable {
         await this.mpv.toggleMute(on);
     }
 
-    @command('player.loopVolume')
-    async loopVolume() {
-        const volume = this.ctx.get<string | number>('player.volume');
-        if (typeof volume === 'number') {
-            this.mpv.setVolume((volume + 20) % 120);
-        }
+    @command('player.setVolume')
+    async setVolume() {
+        const quickPick = new QuickPick({ disposeOnHide: true });
+        const generateVols = (value?: number) => [
+            this.ctx.get('player.isMuted')
+                ? new QuickPickTreeLeaf('$(unmute)', {
+                      description: 'Unmute',
+                      alwaysShow: true,
+                      onClick: () => {
+                          this.toggleMute(false);
+                          quickPick.hide();
+                      },
+                  })
+                : new QuickPickTreeLeaf('$(mute)', {
+                      description: 'Mute',
+                      alwaysShow: true,
+                      onClick: () => {
+                          this.toggleMute(true);
+                          quickPick.hide();
+                      },
+                  }),
+            ...(value !== undefined
+                ? [
+                      new QuickPickTreeLeaf(`${value}`, {
+                          onClick: () => {
+                              this.mpv.toggleMute(false);
+                              this.mpv.setVolume(value);
+                              quickPick.hide();
+                          },
+                      }),
+                  ]
+                : Array.from(
+                      { length: 10 },
+                      (_, i) =>
+                          new QuickPickTreeLeaf('$(symbol-variable)', {
+                              active: (10 - i) * 10 === this.ctx.get('player.volume'),
+                              description: `${(10 - i) * 10}`,
+                              onClick: () => {
+                                  this.mpv.toggleMute(false);
+                                  this.mpv.setVolume((10 - i) * 10);
+                                  quickPick.hide();
+                              },
+                          })
+                  )),
+        ];
+        quickPick.render('Set volume, type a integer between 0 to 100...', generateVols());
+        quickPick.onDidChangeValue((value) => {
+            const vol = Number(value);
+            if (value && !Number.isNaN(vol) && vol >= 0 && vol <= 100) {
+                quickPick.repaint(generateVols(vol));
+            } else {
+                quickPick.repaint(generateVols());
+            }
+        });
+        // const volume = this.ctx.get<string | number>('player.volume');
+        // if (typeof volume === 'number') {
+        //     this.mpv.setVolume((volume + 20) % 120);
+        // }
     }
 
     @command('player.showTrackInfo')
-    showTrackInfo() {
-        const { trackInfo } = this;
-        if (trackInfo === undefined) {
-            Logger.throw('No track info found.');
-        }
-        const quickPick = new QuickPick();
-        quickPick.render('Track Info', [
-            new QuickPickTreeLeaf(`Track Name`, { description: trackInfo?.trackName ?? NA }),
-            new QuickPickTreeLeaf(`Album Name`, { description: trackInfo?.albumName ?? NA }),
-            new QuickPickTreeLeaf(`Update time`, { description: trackInfo?.updateTime ?? NA }),
-            new QuickPickTreeLeaf(`Duration`, {
-                description: formatDuration(trackInfo?.duration),
+    async showTrackInfo() {
+        const { playingTrackInfo: trackInfo } = this;
+        Logger.assert(trackInfo, 'No track found.');
+        this.quickPick.loading(trackInfo.trackName);
+        const album = await this.sdk.getAlbumWithTracks({ albumId: trackInfo.albumId });
+        const items = [
+            new QuickPickTreeLeaf('$(history)', {
+                description: `${trackInfo.updateTime} | ${formatDuration(trackInfo.duration)}`,
             }),
-            new QuickPickTreeLeaf(`Play Source`, {
-                description: this.currentTrack?.src ?? 'null',
-                onClick: async (picker) => {
-                    if (this.currentTrack?.src) {
-                        picker.hide();
-                        const choice = await vscode.window.showInformationMessage(
-                            this.currentTrack.src,
-                            'Download',
-                            'Open in Browser'
-                        );
-                        if (choice === 'Download') {
-                            const uri = await vscode.window.showSaveDialog({
-                                defaultUri: vscode.Uri.parse(`~/${this.trackInfo?.trackName}.m4a`),
-                                title: this.trackInfo?.trackName,
-                            });
-                            if (uri?.fsPath) {
-                                try {
-                                    vscode.window.withProgress(
-                                        {
-                                            title: 'Downloading...',
-                                            location: vscode.ProgressLocation.Notification,
-                                        },
-                                        async () => {
-                                            const stream = await this.sdk.download(this.currentTrack!.src!);
-                                            await pipe(stream, createWriteStream(uri.fsPath, { encoding: 'binary' }));
-                                        }
-                                    );
-                                } catch (e) {
-                                    Logger.throw(e);
-                                }
-                            }
-                        } else if (choice === 'Open in Browser') {
-                            openUrl(this.currentTrack.src);
-                        }
-                    }
+            new QuickPickTreeLeaf('$(account)', {
+                description: album.anchorInfo.anchorName,
+                onClick: () => {
+                    vscode.commands.executeCommand('xmlya.common.showUser', this.quickPick, trackInfo.anchorId);
                 },
             }),
-        ]);
-        quickPick.onDidHide(() => quickPick.dispose());
+            new QuickPickTreeLeaf('$(repo)', {
+                description: trackInfo.albumName,
+                onClick: () => {
+                    vscode.commands.executeCommand('xmlya.common.showAlbumTracks', this.quickPick, {
+                        title: trackInfo.albumName,
+                        id: trackInfo.albumId,
+                        subTitle: album.mainInfo.shortIntro,
+                    });
+                },
+            }),
+            new QuickPickTreeLeaf('$(cloud-download)', {
+                description: 'Download audio source...',
+                onClick: () => {
+                    this.quickPick.hide();
+                    this.showTrackUrl();
+                },
+            }),
+            new QuickPickTreeLeaf('$(inbox)', {
+                description: 'View comments...',
+                onClick: () => {
+                    this.viewComments(this.playingTrackInfo);
+                },
+            }),
+        ];
+        this.quickPick.render(trackInfo.trackName, items);
+    }
+
+    @command('player.showPlaylist')
+    async showPlayList() {
+        const quickPick = new QuickPick({ disposeOnHide: true });
+        const items = this.playList.map((item) => {
+            if (item.trackId === this.playingTrack?.trackId) {
+                return new QuickPickTreeLeaf(item.trackName, {
+                    description: formatDuration(item.duration),
+                    active: true,
+                    onClick: () => {
+                        vscode.commands.executeCommand('xmlya.player.showTrackInfo');
+                        quickPick.hide();
+                    },
+                });
+            }
+            return new QuickPickTreeLeaf(item.trackName, {
+                description: formatDuration(item.duration),
+                onClick: () => {
+                    quickPick.hide();
+                    this.playTrack(item.trackId, item.albumId);
+                },
+            });
+        });
+        if (items.length) {
+            quickPick.render('Playlist', items);
+        }
+    }
+
+    @command('player.showTrackUrl')
+    async showTrackUrl({ src, name }: { src?: string; name?: string } = {}) {
+        src = src ?? this.playingTrack?.src;
+        name = name ?? this.playingTrackInfo?.trackName;
+        Logger.assert(src, 'Track source is required');
+        const choice = await vscode.window.showInformationMessage(src, 'Download', 'Open in Browser');
+        if (choice === 'Download') {
+            const uri = await vscode.window.showSaveDialog({
+                defaultUri: vscode.Uri.parse(`~/${name ?? 'audio'}.m4a`),
+                title: name ?? 'audio',
+            });
+            if (uri?.fsPath) {
+                try {
+                    vscode.window.withProgress(
+                        {
+                            title: 'Downloading...',
+                            location: vscode.ProgressLocation.Notification,
+                        },
+                        async () => {
+                            const stream = await this.sdk.download(src!);
+                            await pipe(stream, createWriteStream(uri.fsPath, { encoding: 'binary' }));
+                        }
+                    );
+                } catch (e) {
+                    Logger.throw(e);
+                }
+            }
+        } else if (choice === 'Open in Browser') {
+            openUrl(src);
+        }
+    }
+
+    @command('player.viewComments')
+    async viewComments(
+        { trackId, trackName }: { trackId?: number; trackName?: string } = {},
+        params?: IPaginator,
+        bySelf = false
+    ) {
+        trackId = trackId ?? this.playingTrackInfo?.trackId;
+        trackName = trackName ?? this.playingTrackInfo?.trackName;
+        if (trackId === undefined) return;
+        this.quickPick.loading(trackName ?? 'Comments...');
+        const ret = await this.sdk.getCommentsOfTrack({ trackId, ...params });
+        this.quickPick.render(
+            trackName ?? 'Comments...',
+            {
+                pagination: { pageNum: ret.pageNum, pageSize: ret.pageSize, totalCount: ret.totalCount },
+                onPageChange: (pageNum) => this.viewComments({ trackId, trackName }, { ...params, pageNum }, true),
+                items: ret.comments.map((comment) => {
+                    if (comment.replies?.length) {
+                        return new QuickPickTreeParent(comment.nickname, {
+                            description: comment.createAt,
+                            detail: comment.content,
+                            children: comment.replies.map(
+                                (reply) =>
+                                    new QuickPickTreeLeaf(`${reply.nickname} (to ${reply.parentNickname})`, {
+                                        description: reply.createAt,
+                                        detail: reply.content,
+                                    })
+                            ),
+                        });
+                    }
+                    return new QuickPickTreeLeaf(comment.nickname, {
+                        description: comment.createAt,
+                        detail: comment.content,
+                    });
+                }),
+            },
+            bySelf ? 'replace' : 'push'
+        );
     }
 
     @command('player.setSpeed')
@@ -245,7 +404,9 @@ export class Player extends Runnable {
             'Set Playback Speed',
             choices.map(
                 (speed) =>
-                    new QuickPickTreeLeaf(`${speed} x`, {
+                    new QuickPickTreeLeaf(`$(symbol-event)`, {
+                        active: this.ctx.get('player.speed') === speed,
+                        description: `${speed}x`,
                         onClick: async (picker) => {
                             picker.hide();
                             await this.mpv.setSpeed(speed);
@@ -258,26 +419,76 @@ export class Player extends Runnable {
 
     @command('player.goNext', 'Loading next track...')
     async goNext() {
-        const index = this.playList.findIndex((item) => item.trackId === this.currentTrack?.trackId);
-        if (index < this.playList.length - 1) {
-            const nextTrack = this.playList[index + 1];
-            await this.playTrack(nextTrack.trackId, nextTrack.albumId);
-        } else if (this.playContext?.hasMore) {
-            this.playContext = await this.sdk.getContextTracks({ trackId: this.currentTrack!.trackId });
-            await this.goNext();
+        Logger.assert(this.playingTrackInfo, 'No track');
+        const index = this.playingTrackInfo.index + 1;
+        let track = this.playList.find((item) => item.index === index);
+        if (!track && this.playContext?.hasMore) {
+            this.playContext = await this.sdk.getContextTracks({
+                albumId: this.playingTrackInfo.albumId,
+                index,
+            });
+            track = this.playList.find((item) => item.index === index);
+        }
+        if (track) {
+            await this.playTrack(track.trackId, track.albumId);
+        } else {
+            vscode.window.showWarningMessage('Failed to get next track');
         }
     }
 
     @command('player.goPrev', 'Loading previous track...')
     async goPrev() {
-        const index = this.playList.findIndex((item) => item.trackId === this.currentTrack?.trackId);
-        if (index > 0) {
-            const prevTrack = this.playList[index - 1];
-            await this.playTrack(prevTrack.trackId, prevTrack.albumId);
+        Logger.assert(this.playingTrackInfo, 'No track');
+        const index = this.playingTrackInfo.index - 1;
+        let track = this.playList.find((item) => item.index === index);
+        if (!track && this.playingTrackInfo && this.playingTrackInfo.index > 1) {
+            this.playContext = await this.sdk.getContextTracks({
+                albumId: this.playingTrackInfo.albumId,
+                index,
+            });
+            track = this.playList.find((item) => item.index === index);
         }
-        if (this.trackInfo?.index ?? 1 > 1) {
-            this.playContext = await this.sdk.getContextTracks({ trackId: this.currentTrack!.trackId });
-            await this.goPrev();
+        if (track) {
+            await this.playTrack(track.trackId, track.albumId);
+        } else {
+            vscode.window.showWarningMessage('Failed to get previous track');
         }
+    }
+
+    private progressToken: Callback<void> | undefined;
+    @command('player.toggleProgress')
+    async toggleProgress(show?: boolean) {
+        if (this.progressToken) {
+            this.progressToken();
+            this.progressToken = undefined;
+            if (show === undefined) return;
+        }
+        if (show === false) {
+            return;
+        }
+        const disposable = await vscode.window.withProgress(
+            {
+                location: vscode.ProgressLocation.Notification,
+            },
+            async (progress) => {
+                progress.report({ message: 'No track' });
+                let prev = 0;
+                return new Promise<vscode.Disposable>((resolve) => {
+                    this.progressToken = () => resolve(handler);
+                    const handler = this.ctx.onChange((keys) => {
+                        if (keys.includes('player.percentPos') && this.playingTrackInfo) {
+                            const percent = this.ctx.get<number | undefined>('player.percentPos') ?? 0;
+                            const increment = percent - prev;
+                            prev = percent;
+                            progress.report({
+                                increment,
+                                message: `Playing: ${this.playingTrackInfo.trackName} (${percent}%)`,
+                            });
+                        }
+                    });
+                });
+            }
+        );
+        disposable.dispose();
     }
 }

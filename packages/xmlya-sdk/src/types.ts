@@ -230,6 +230,74 @@ export interface IAlbumDetail {
     } & IPagination;
 }
 
+export interface IUserPub {
+    uid: number;
+    pubPageInfo: {
+        totalCount: number;
+        pubInfoList: IAlbum[];
+    };
+    trackPageInfo: {
+        totalCount: number;
+        trackInfoList: {
+            trackId: number;
+            title: string;
+            trackUrl: string;
+            coverPath: string;
+            createTimeAsString: string;
+            albumId: number;
+            albumTitle: string;
+            albumUrl: string;
+            anchorUid: number;
+            anchorUrl: string;
+            nickname: string;
+            durationAsString: string;
+            playCount: number;
+            isLike: boolean;
+            isPaid: boolean;
+            isRelay: boolean;
+            isVideo: boolean;
+            videoCover: boolean;
+            breakSecond: number;
+            length: number;
+        }[]
+    }
+}
+
+export interface IUserInfo {
+    uid: number;
+    nickName: string;
+    cover: string;
+    background: string;
+    isVip: boolean;
+    constellationStr: string;
+    constellationType: number;
+    personalSignature: string;
+    personalDescription: string;
+    fansCount: number;
+    gender: number;
+    birthMonth: number;
+    birthDay: number;
+    province: string;
+    city: string;
+    anchorGrade: number;
+    anchorGradeType: number;
+    isMusician: boolean;
+    anchorUrl: string;
+    relation: {
+        isFollow: boolean;
+        beFollow: boolean;
+        isBlack: boolean;
+    };
+    liveInfo: {
+        id: number;
+        roomId: number;
+        coverPath: string;
+        liveUrl: string;
+        status: number;
+    }
+    logoType: number;
+    followingCount: number;
+}
 export interface ITracksInAlbum extends IPagination {
     currentUid: number;
     albumId: number;
