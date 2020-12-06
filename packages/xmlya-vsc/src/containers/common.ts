@@ -1,6 +1,5 @@
 import { ISortablePaginator } from '@xmlya/sdk';
 import { QuickPick, QuickPickTreeLeaf, QuickPickTreeParent } from 'src/components/quick-pick';
-import { ContextService } from 'src/context';
 import { command, Runnable } from 'src/runnable';
 import { commands, Disposable } from 'vscode';
 

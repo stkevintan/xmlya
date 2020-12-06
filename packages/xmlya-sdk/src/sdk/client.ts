@@ -17,6 +17,7 @@ export interface IClient {
         options?: OverrideOptions
     ): Promise<ResBody<T> & R>;
     get: <T>(url: string, params?: any) => Promise<T>;
+    post: <T>(url: string, body?: any) => Promise<T>;
     getStream: (url: string, params?: Options['searchParams'], options?: OverrideOptions) => Promise<Duplex>;
     // TODO: add other methods: post , delete
 }
@@ -37,7 +38,7 @@ export interface IRequestOptions {
 }
 
 const baseURL = 'https://www.ximalaya.com';
-const getPrefixUrl = (url: string) => /^https?:\/\//.test(url) ? undefined : baseURL;
+const getPrefixUrl = (url: string) => (/^https?:\/\//.test(url) ? undefined : baseURL);
 
 export class Client implements IClient {
     protected readonly client: Got;
@@ -63,6 +64,18 @@ export class Client implements IClient {
             ],
         });
     }
+    async post<T = unknown>(url: string, body?: any): Promise<T> {
+        const res = await this.client.post(url, {
+            form: body,
+            prefixUrl: getPrefixUrl(url),
+        });
+        const parsed = JSON.parse(res.body);
+        const okCode = url.includes('nyx') ? 0 : 200;
+        if (parsed.ret !== okCode) {
+            throw new Error(`Post ${url} failed, code: ${parsed.ret}, message: ${parsed.msg}`);
+        }
+        return parsed.data;
+    }
 
     private async getSign(): Promise<string> {
         const url = 'revision/time';
@@ -80,7 +93,8 @@ export class Client implements IClient {
 
     async ['get']<T = unknown>(url: string, params?: Options['searchParams'], options?: OverrideOptions): Promise<T> {
         const body = await this.getRaw<T>(url, params, options);
-        assert(body.ret === 200, `response of ${url}[GET] failed, msg: ${body.msg}`);
+        const okCode = url.includes('nyx') ? 0 : 200;
+        assert(body.ret === okCode, `response of ${url}[GET] failed, msg: ${body.msg}`);
         return body.data!;
     }
 
@@ -105,7 +119,12 @@ export class Client implements IClient {
 
     async getStream(url: string, params?: Options['searchParams'], options: OverrideOptions = {}): Promise<Duplex> {
         try {
-            const request = this.client.stream.get(url, { searchParams: params, prefixUrl: getPrefixUrl(url), responseType: 'buffer', ...options });
+            const request = this.client.stream.get(url, {
+                searchParams: params,
+                prefixUrl: getPrefixUrl(url),
+                responseType: 'buffer',
+                ...options,
+            });
             return request;
         } catch (e) {
             Error.captureStackTrace(e);

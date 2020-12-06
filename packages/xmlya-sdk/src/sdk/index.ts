@@ -18,6 +18,7 @@ import {
 } from '../types';
 import { IClient } from './client';
 import { decodeNonFreeAudioSrc } from '../lib/decoder';
+import { assert } from 'console';
 
 export class XmlyaSDK {
     constructor(private client: IClient) {}
@@ -110,7 +111,7 @@ export class XmlyaSDK {
 
     getContextTracks = (
         params:
-            | { albumId: number; index: number, sort?: SortOrder; size?: number }
+            | { albumId: number; index: number; sort?: SortOrder; size?: number }
             | { trackId: number; sort?: SortOrder; size?: number }
     ) => {
         const sort = params.sort ?? SortOrder.asc;
@@ -129,6 +130,35 @@ export class XmlyaSDK {
             sort,
             size,
             ptype: 1,
+        });
+    };
+
+    getTraceToken = (params: { trackId: number }) => {
+        return this.client.post<{ token: string }>('nyx/v2/track/count/web', params);
+    };
+
+    getServerTime = (): Promise<number> => {
+        return this.client.getRaw('revision/time') as any;
+    };
+
+    getTraceInterval = async (): Promise<{ interval: number }> => {
+        return await this.client.get<{ interval: number }>('nyx/v2/track/statistic/interval');
+    };
+
+    traceStats = async (params: {
+        trackId: number;
+        albumId: number;
+        startedAt: number;
+        endedAt?: number;
+        breakSecond: number;
+        token: string;
+    }): Promise<void> => {
+        const endedAt = params.endedAt ?? Date.now();
+        return await this.client.post<void>('nyx/v2/track/statistic/web', {
+            ...params,
+            direction: 0,
+            endedAt,
+            duration: Math.floor((endedAt - params.startedAt) / 1000),
         });
     };
 

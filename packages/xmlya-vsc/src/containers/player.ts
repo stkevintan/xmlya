@@ -4,7 +4,7 @@ import { IContextTracks, IPaginator, ISortablePaginator, ITrackAudio } from '@xm
 import { Logger } from '../lib/logger';
 import { ConfigKeys, Configuration } from '../configuration';
 import { StatusBar } from '../components/status-bar';
-import { Callback, ellipsis, formatDuration, NA, openUrl } from '../lib';
+import { ellipsis, formatDuration, openUrl } from '../lib';
 import { Mpv } from '@xmlya/mpv';
 import { QuickPick, QuickPickTreeLeaf, QuickPickTreeParent } from '../components/quick-pick';
 import controls from '../playctrls.json';
@@ -12,7 +12,6 @@ import { ContextService } from 'src/context';
 import { createWriteStream } from 'fs';
 import { pipeline } from 'stream';
 import { promisify } from 'util';
-import { throttle } from 'throttle-debounce-ts';
 const pipe = promisify(pipeline);
 
 export class Player extends Runnable {
@@ -53,13 +52,16 @@ export class Player extends Runnable {
         const statusBar = new StatusBar(controls, Configuration.statusBarItemBase);
         // render in current context
         statusBar.renderWith(context, 'player');
-        return vscode.Disposable.from(
-            ...syncCtxRefs,
-            ...syncConfRefs,
-            statusBar,
-            { dispose: () => this.progressToken?.() },
-            { dispose: () => this.quickPick?.dispose() }
-        );
+        // start trace
+        const traceRef = this.ctx.onChange((keys) => {
+            if (keys.includes('player.readyState')) {
+                this.toggleTrace(this.ctx.get('player.readyState') === 'playing');
+            }
+        });
+
+        return vscode.Disposable.from(...syncCtxRefs, ...syncConfRefs, statusBar, this.quickPick, traceRef, {
+            dispose: () => this.traceContext?.start(),
+        });
     }
 
     private syncConf(): vscode.Disposable[] {
@@ -110,14 +112,15 @@ export class Player extends Runnable {
                 ctx.set('player.speed', speed);
                 ctx.globalState.update('xmlya.player.speed', speed);
             }),
-            this.mpv.watchProp<number>(
-                'percent-pos',
-                throttle(1000, (percent: number) => {
-                    percent = Math.floor(percent);
-                    const ret = Number.isNaN(percent) ? undefined : percent;
-                    ctx.set('player.percentPos', ret);
-                })
-            ),
+            // too many logs
+            // this.mpv.watchProp<number>(
+            //     'percent-pos',
+            //     throttle(1000, (percent: number) => {
+            //         percent = Math.floor(percent);
+            //         const ret = Number.isNaN(percent) ? undefined : percent;
+            //         ctx.set('player.percentPos', ret);
+            //     })
+            // ),
             this.mpv.onEvent(({ event, ...data }) => {
                 switch (event) {
                     case 'start-file':
@@ -184,6 +187,55 @@ export class Player extends Runnable {
         await this.mpv.play(this.playingTrack.src);
         // do not need await.
         this.resume();
+    }
+
+    private traceContext?: { trackId: number; start: () => void; stop: () => void };
+    private async toggleTrace(on: boolean = true) {
+        if (!on) {
+            this.traceContext?.stop();
+            return;
+        }
+        if (this.playingTrack === undefined) return;
+        if (this.playingTrack.trackId === this.traceContext?.trackId) {
+            this.traceContext.start();
+            return;
+        }
+        this.traceContext?.stop();
+        this.traceContext = undefined;
+        const startedAt = Date.now();
+        const [{ interval }, { token }] = await Promise.all([
+            this.sdk.getTraceInterval(),
+            this.sdk.getTraceToken({ trackId: this.playingTrack.trackId }),
+        ]);
+
+        let id: NodeJS.Timeout | undefined = undefined;
+        this.traceContext = {
+            trackId: this.playingTrack.trackId,
+            start: () => {
+                if (id === undefined) {
+                    id = setInterval(async () => {
+                        if (this.playingTrackInfo) {
+                            const params = {
+                                trackId: this.playingTrackInfo.trackId,
+                                token,
+                                startedAt,
+                                breakSecond: Math.floor(await this.mpv.getTimePos()),
+                                albumId: this.playingTrackInfo.albumId,
+                            };
+                            console.debug('send trace', params);
+                            await this.sdk.traceStats(params);
+                        }
+                    }, interval * 1000);
+                }
+            },
+            stop: () => {
+                if (id !== undefined) {
+                    clearInterval(id);
+                    id = undefined;
+                }
+            },
+        };
+        this.traceContext.start();
     }
 
     @command('player.resume')
@@ -456,42 +508,5 @@ export class Player extends Runnable {
         } else {
             vscode.window.showWarningMessage('Failed to get previous track');
         }
-    }
-
-    private progressToken: Callback<void> | undefined;
-    @command('player.toggleProgress')
-    async toggleProgress(show?: boolean) {
-        if (this.progressToken) {
-            this.progressToken();
-            this.progressToken = undefined;
-            if (show === undefined) return;
-        }
-        if (show === false) {
-            return;
-        }
-        const disposable = await vscode.window.withProgress(
-            {
-                location: vscode.ProgressLocation.Notification,
-            },
-            async (progress) => {
-                progress.report({ message: 'No track' });
-                let prev = 0;
-                return new Promise<vscode.Disposable>((resolve) => {
-                    this.progressToken = () => resolve(handler);
-                    const handler = this.ctx.onChange((keys) => {
-                        if (keys.includes('player.percentPos') && this.playingTrackInfo) {
-                            const percent = this.ctx.get<number | undefined>('player.percentPos') ?? 0;
-                            const increment = percent - prev;
-                            prev = percent;
-                            progress.report({
-                                increment,
-                                message: `Playing: ${this.playingTrackInfo.trackName} (${percent}%)`,
-                            });
-                        }
-                    });
-                });
-            }
-        );
-        disposable.dispose();
     }
 }

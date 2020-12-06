@@ -14,7 +14,7 @@ describe('test sdk methods', () => {
     });
 
     it('should listen history work', async () => {
-        const ret = await sdk.getListenHistories();
+        const ret = await sdk.getPlayHistory();
         expect(ret.totalCount).toBeGreaterThanOrEqual(0);
     });
 
@@ -78,19 +78,37 @@ describe('test sdk methods', () => {
         expect(ret2.ep).toBeTruthy();
     });
 
-    it('should get track audio src work', async () => {
-        let trackId = 18556415;
-        let ret = await sdk.getTrackAudioSrc({ trackId });
-        expect(ret).toBeTruthy();
-        trackId = 96909420;
-        ret = await sdk.getTrackAudioSrc({ trackId });
-        expect(ret).toBeTruthy();
-    });
-
     it('should get context tracks work', async () => {
         const trackId = 18556415;
         const ret = await sdk.getContextTracks({ trackId, size: 2 });
         expect(ret.hasMore).toBe(true);
         expect(ret.tracksAudioPlay.length).toBe(2);
+    });
+
+    it('should server time work', async () => {
+        const ret = await sdk.getServerTime();
+        expect(ret).toBeTruthy();
+    });
+
+    it('should token get success', async () => {
+        const ret = await sdk.getTraceToken({ trackId: 97098327 });
+        expect(ret.token).toBeTruthy();
+    });
+
+    it('should interval get success', async () => {
+        const ret = await sdk.getTraceInterval();
+        expect(ret.interval).toBeTruthy();
+    });
+
+    it('should track work', async () => {
+        const trackId = 97098327;
+        const ret = await sdk.traceStats({
+            trackId,
+            albumId: 14356532,
+            startedAt: Date.now() - 20 * 1000,
+            breakSecond: 15,
+            token: (await sdk.getTraceToken({ trackId })).token,
+        });
+        expect(ret).toBeFalsy();
     });
 });
