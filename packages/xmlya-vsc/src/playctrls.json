@@ -2,7 +2,7 @@
     {
         "key": "track",
         "tooltip": "track info",
-        "text": "$(book) {player.trackTitle} - {player.percentPos}%",
+        "text": "$(book) {player.trackTitle}",
         "command": "xmlya.player.showTrackInfo",
         "when": "player.readyState == 'playing' || player.readyState == 'paused'"
     },
