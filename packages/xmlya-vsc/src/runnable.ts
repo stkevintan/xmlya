@@ -97,20 +97,20 @@ export abstract class Runnable {
 
     constructor(protected sdk: XmlyaSDK) {}
 
-    abstract initialize(context: ContextService): vscode.Disposable | undefined;
+    abstract initialize(context: ContextService): PromiseOrNot<vscode.Disposable | undefined>;
 
     protected register<T extends vscode.Disposable>(x: T): T {
         this.subs.push(x);
         return x;
     }
 
-    runInContext(context: ContextService) {
+    async runInContext(context: ContextService) {
         context.subscriptions.push({
             dispose: () => {
                 vscode.Disposable.from(...this.subs).dispose();
             },
         });
-        const mayBeDisposable = this.initialize(context);
+        const mayBeDisposable = await this.initialize(context);
         if (mayBeDisposable) {
             context.subscriptions.push(mayBeDisposable);
         }

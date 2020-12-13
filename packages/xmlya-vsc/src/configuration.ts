@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import { IStatusBarItemSpec } from './components/status-bar';
 import { Callback, omitNillKeys, isntNil, isNil } from './lib';
-import { Logger } from './lib/logger';
 
 export enum ConfigKeys {
     Cookie = 'xmlya.cookie',
@@ -26,7 +25,6 @@ export class Configuration {
                     keys.push(key);
                 }
             }
-
             if (keys.length) {
                 cb(keys);
             }

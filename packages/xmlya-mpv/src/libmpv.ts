@@ -1,9 +1,8 @@
-import net from 'net';
 import cp from 'child_process';
-import { Defer, EventEmitter, Disposable, memoAsync, noop, retryOnError, uniqArguments, getRandomId } from './common';
-import { Callback, IEventReply, ILibMpvOptions, IReply, isResultReply } from './types';
+import { Disposable, retryOnError, uniqArguments, getRandomId } from './common';
+import { Callback, IEventReply, ILibMpvOptions } from './types';
 import { Logger } from './logger';
-import { request } from 'http';
+import { Connection, ConnectionBuiltinEvents } from './connection';
 
 // default Arguments
 // --no-config Do not load default configuration files. This prevents loading of both the user-level and system-wide mpv.conf and input.conf files
@@ -22,38 +21,14 @@ const baseArguments = [
 ];
 
 export class LibMpv extends Disposable {
-    private mpvd?: cp.ChildProcessWithoutNullStreams;
-    private version: string;
-    private replies$ = new EventEmitter<IReply>();
-    private requestId = 0;
-    private observerId = 0;
-
-    getVersion() {
-        return this.version;
-    }
-
-    onEvent(cb: Callback<IEventReply>) {
-        return this.replies$.on((event) => {
-            if (!isResultReply(event)) {
-                cb(event);
-            }
-        });
-    }
-
-    get mpvBin(): string {
-        return this.options.mpvBinary || 'mpv';
-    }
-
-    private readonly socketPath: string;
-
-    private generateSocketPath() {
+    private static generateSocketPath() {
         const id = getRandomId('xxxxxx');
         return process.platform === 'win32' ? `\\\\.\\pipe\\mpvserver-${id}` : `/tmp/node-mpv-${id}.sock`;
     }
 
-    private otherArgs() {
+    private static moreArgs(options: ILibMpvOptions) {
         const ret: string[] = [];
-        const { volume, mute, speed } = this.options;
+        const { volume, mute, speed } = options;
         if (typeof volume === 'number' && volume >= 0 && volume <= 100) {
             ret.push(`--volume=${volume}`);
         }
@@ -68,18 +43,46 @@ export class LibMpv extends Disposable {
         return ret;
     }
 
-    constructor(private options: ILibMpvOptions = {}) {
-        super(() => {
-            this.replies$.dispose();
-            this.killMpv();
+    static async create(options: ILibMpvOptions = {}): Promise<LibMpv> {
+        Logger.info('starting mpv');
+        const binPath = options.mpvBinary?.trim() || 'mpv';
+        const version = this.checkVer(binPath);
+        if (!version) {
+            throw new Error(`mpv version (${version}) is not supported.`);
+        }
+        const socketPath = options.socketPath ?? this.generateSocketPath();
+        const combinedArguments = uniqArguments([
+            `--input-ipc-server=${socketPath}`,
+            ...baseArguments,
+            ...this.moreArgs(options),
+            ...(options.args ?? []),
+        ]);
+
+        const mpvd = cp.spawn(binPath, combinedArguments, {
+            windowsHide: true,
         });
-        this.socketPath = this.options.socketPath || this.generateSocketPath();
-        Logger.info('socket path at:', this.socketPath);
-        this.version = this.checkVer();
+
+        mpvd.stdout.on('data', (chunk) => Logger.debug('mpv stdout:', chunk.toString('utf8')));
+        mpvd.stderr.on('data', (chunk) => Logger.debug('mpv stderr:', chunk.toString('utf8')));
+
+        Logger.info('mpv start successfully');
+        try {
+            const conn = await retryOnError(() => Connection.establish(socketPath));
+            // when socket closed, kill the mpv process.
+            conn.once(ConnectionBuiltinEvents.Close, () => mpvd.kill());
+            return new LibMpv(conn);
+        } catch (e) {
+            mpvd.kill();
+            throw e;
+        }
     }
 
-    private checkVer(): string {
-        const stdout = cp.execSync(`${this.mpvBin} --version`, { encoding: 'utf-8' });
+    protected constructor(private conn: Connection) {
+        super(() => conn.dispose());
+    }
+
+    private static checkVer(binPath: string): string {
+        const stdout = cp.execSync(`${binPath} --version`, { encoding: 'utf-8' });
         // version maybe a release version or a git hash
         const match = stdout.match(/mpv\s+(\S+)/);
         if (!match?.[1]) {
@@ -98,111 +101,9 @@ export class LibMpv extends Disposable {
         return version;
     }
 
-    private async tryConnect(): Promise<net.Socket> {
-        const defer = new Defer((e) => {
-            Logger.error('connect failed', e);
-            socket?.removeAllListeners();
-            socket?.destroy();
-        });
-
-        Logger.info('try to connect');
-
-        const socket = new net.Socket()
-            .connect(this.socketPath)
-            .once('ready', () => {
-                Logger.debug('socket connected');
-                defer.resolve();
-            })
-            .once('error', defer.reject);
-        await defer.asPromise();
-        return socket;
-    }
-
-    private killMpv() {
-        Logger.debug('kill mpv');
-        this.mpvd?.stdout.removeAllListeners();
-        this.mpvd?.stderr.removeAllListeners();
-        this.mpvd?.removeAllListeners();
-        this.mpvd?.kill();
-        this.lazyStart.flush();
-    }
-
-    private lazyStart = memoAsync(async () => {
-        Logger.info('starting mpv');
-        if (!this.version) {
-            throw new Error(`mpv version (${this.version}) is not supported.`);
-        }
-
-        if (this.mpvd && !this.mpvd.killed) {
-            this.mpvd.kill();
-        }
-
-        const combinedArguments = uniqArguments([
-            `--input-ipc-server=${this.socketPath}`,
-            ...baseArguments,
-            ...this.otherArgs(),
-            ...(this.options.args ?? []),
-        ]);
-
-        this.mpvd = cp.spawn(this.mpvBin, combinedArguments, {
-            windowsHide: true,
-        });
-
-        this.mpvd.on('close', (code) => {
-            Logger.warn(`mpv exit with code ${code}`);
-            this.killMpv();
-        });
-
-        this.mpvd.stdout.on('data', (chunk) => Logger.debug('mpv stdout:', chunk.toString('utf8')));
-        this.mpvd.stderr.on('data', (chunk) => Logger.debug('mpv stderr:', chunk.toString('utf8')));
-        try {
-            Logger.info('mpv start successfully');
-            const socket = await retryOnError(() => this.tryConnect());
-            // pipe data event to replies$
-            return socket.on('data', (chunk) => {
-                Logger.debug('receive socket:', chunk.toString('utf-8'));
-                const raws = chunk
-                    .toString('utf-8')
-                    .split('\n')
-                    .map((m) => m.trim())
-                    .filter((m) => m);
-                for (const raw of raws) {
-                    const message = JSON.parse(raw);
-                    this.replies$.fire(message);
-                }
-            });
-        } catch (e) {
-            // when connect failed, kill mpv
-            this.killMpv();
-            throw e;
-        }
-    });
-
     // DO NOT CALL `exec` in above methods
     async exec<T = any>(command: string, ...params: any[]): Promise<T> {
-        const socket = await this.lazyStart();
-        const request_id = this.requestId++;
-        const defer = new Defer<T>(() => handle.dispose());
-        const handle = this.replies$.on((reply) => {
-            if (isResultReply(reply) && reply.request_id === request_id) {
-                if (reply.error !== 'success') {
-                    defer.reject(reply.error);
-                } else {
-                    defer.resolve(reply.data);
-                    handle.dispose();
-                }
-            }
-        });
-        Logger.debug('send command:', request_id, command, ...params);
-        socket.write(
-            JSON.stringify({ command: [command, ...params.filter((x) => x !== undefined)], request_id }) + '\n',
-            (err) => {
-                if (err) {
-                    defer.reject(err);
-                }
-            }
-        );
-        return await defer.asPromise();
+        return await this.conn.send(command, params);
     }
 
     //https://mpv.io/manual/stable/#properties
@@ -223,17 +124,20 @@ export class LibMpv extends Disposable {
     }
 
     watchProp<T = any>(name: string, cb: Callback<T>): Disposable {
-        const currentId = this.observerId++;
-        const handle = Disposable.from(
-            this.onEvent(({ event, name: eventName, data }) => {
-                if (event === 'property-change' && name === eventName) {
-                    cb(data);
-                }
-            }),
-            { dispose: () => this.exec('unobserve_property', currentId).catch(noop) }
-        );
-        // do not await this command.
-        this.exec('observe_property', currentId, name);
-        return handle;
+        const sub = this.conn.on('property-change', (reply: IEventReply) => {
+            if (reply.name === name) {
+                cb(reply.data);
+            }
+        });
+
+        return Disposable.from(sub, this.conn.observe(name));
+    }
+
+    on(name: string, cb: Callback<any>): Disposable {
+        return this.conn.on(name, cb);
+    }
+
+    once(name: string, cb: Callback<any>): Disposable {
+        return this.conn.once(name, cb);
     }
 }

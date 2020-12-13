@@ -1,4 +1,5 @@
 import { spawn } from 'child_process';
+import { Disposable } from 'vscode';
 import { IndentChars, NA } from './constant';
 
 export type PromiseOrNot<T> = T | Promise<T>;
@@ -90,4 +91,20 @@ export function openUrl(url: string): void {
     spawn(command, [url], {
         detached: true,
     }).unref();
+}
+
+export async function delay(ms: number) {
+    return await new Promise((res) => setTimeout(res, ms));
+}
+
+export function asyncInterval(cb: Action<Promise<void>>, ms: number): Disposable {
+    let working = true;
+    const loop = async () => {
+        while (working) {
+            await cb();
+            await delay(ms);
+        }
+    };
+    loop();
+    return { dispose: () => (working = false) };
 }

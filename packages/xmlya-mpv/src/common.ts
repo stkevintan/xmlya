@@ -1,8 +1,8 @@
 import events from 'events';
+import { Socket } from 'net';
 import { Logger } from './logger';
 import { Callback } from './types';
-
-interface IDisposable {
+export interface IDisposable {
     dispose: () => void;
 }
 export class Disposable implements IDisposable {
@@ -78,32 +78,39 @@ export class Defer<T = void> {
         }
     };
 
-    asPromise() {
+    wait() {
         return this._promise;
     }
 }
 
-export class EventEmitter<T> extends Disposable {
-    constructor() {
-        super(() => this.event.removeAllListeners());
-        this.event.setMaxListeners(100);
-    }
+export class EventEmitter extends Disposable {
     private event = new events.EventEmitter();
-    private eventName = '<internal>';
 
-    on(callback: Callback<T>): Disposable {
-        Logger.debug('listener count', this.event.listenerCount(this.eventName));
-        this.event.on(this.eventName, callback);
-        return new Disposable(() => this.event.removeListener(this.eventName, callback));
+    constructor(callOnDispose?: () => void) {
+        super(() => {
+            this.event.removeAllListeners();
+            callOnDispose?.();
+        });
+        this.event.setMaxListeners(0);
     }
 
-    fire(value: T): boolean {
-        return this.event.emit(this.eventName, value);
+    on(name: string | symbol, callback: Callback<any>): Disposable {
+        this.event.on(name, callback);
+        return new Disposable(() => this.event.off(name, callback));
+    }
+
+    once(name: string | symbol, callback: Callback<any>): Disposable {
+        this.event.once(name, callback);
+        return new Disposable(() => this.event.off(name, callback));
+    }
+
+    emit(name: string | symbol, value?: any): boolean {
+        return this.event.emit(name, value);
     }
 }
 
 const voidSym = Symbol('void');
-export const memoAsync = <T>(fn: () => Promise<T>) => {
+export const memoAsync = <T extends IDisposable>(fn: () => Promise<T>) => {
     let cache: any = voidSym;
     const cachedFn = (): Promise<T> => {
         return cache === voidSym
@@ -115,6 +122,9 @@ export const memoAsync = <T>(fn: () => Promise<T>) => {
             : cache;
     };
     cachedFn.flush = () => {
+        if (cache !== voidSym) {
+            cache.then((ret: IDisposable) => ret?.dispose());
+        }
         cache = voidSym;
     };
     return cachedFn;

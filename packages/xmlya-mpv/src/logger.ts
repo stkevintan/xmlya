@@ -1,5 +1,3 @@
-import { noop } from "./common";
-
 const LogLevel = ['debug', 'info', 'warn', 'error'] as const;
 export type LogLevel = typeof LogLevel[number];
 

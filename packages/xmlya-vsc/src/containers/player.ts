@@ -4,7 +4,7 @@ import { IContextTracks, IPaginator, ISortablePaginator, ITrackAudio } from '@xm
 import { Logger } from '../lib/logger';
 import { ConfigKeys, Configuration } from '../configuration';
 import { StatusBar } from '../components/status-bar';
-import { ellipsis, formatDuration, openUrl } from '../lib';
+import { asyncInterval, ellipsis, formatDuration, openUrl } from '../lib';
 import { Mpv } from '@xmlya/mpv';
 import { QuickPick, QuickPickTreeLeaf, QuickPickTreeParent } from '../components/quick-pick';
 import controls from '../playctrls.json';
@@ -33,8 +33,8 @@ export class Player extends Runnable {
         return this.playList.find((track) => track.trackId === this.playingTrack?.trackId);
     }
 
-    initialize(context: ContextService) {
-        this.mpv = new Mpv({
+    async initialize(context: ContextService) {
+        this.mpv = await Mpv.create({
             mpvBinary: Configuration.mpvBinary,
             args: Configuration.mpvAguments,
             volume: context.globalState.get('xmlya.player.volume'),
@@ -90,25 +90,25 @@ export class Player extends Runnable {
     private syncContext(ctx: ContextService): vscode.Disposable[] {
         // add watches
         return [
-            this.mpv.watchProp<boolean>('core-idle', (active) => {
+            this.mpv.watch<boolean>('core-idle', (active) => {
                 if (!active) ctx.set('player.readyState', 'playing');
             }),
-            this.mpv.watchProp<boolean>('idle-active', (active) => {
+            this.mpv.watch<boolean>('idle-active', (active) => {
                 if (active) ctx.set('player.readyState', 'idle');
             }),
-            this.mpv.watchProp<boolean>('mute', (mute) => {
+            this.mpv.watch<boolean>('mute', (mute) => {
                 ctx.set('player.isMuted', !!mute);
                 ctx.globalState.update('xmlya.player.isMuted', !!mute);
             }),
 
-            this.mpv.watchProp<boolean>('seek', (seeking) => {
+            this.mpv.watch<boolean>('seek', (seeking) => {
                 if (seeking) ctx.set('player.readyState', 'seeking');
             }),
-            this.mpv.watchProp<number>('volume', (volume) => {
+            this.mpv.watch<number>('volume', (volume) => {
                 ctx.set('player.volume', volume);
                 ctx.globalState.update('xmlya.player.volume', volume);
             }),
-            this.mpv.watchProp<number>('speed', (speed) => {
+            this.mpv.watch<number>('speed', (speed) => {
                 ctx.set('player.speed', speed);
                 ctx.globalState.update('xmlya.player.speed', speed);
             }),
@@ -121,24 +121,20 @@ export class Player extends Runnable {
             //         ctx.set('player.percentPos', ret);
             //     })
             // ),
-            this.mpv.onEvent(({ event, ...data }) => {
-                switch (event) {
-                    case 'start-file':
-                        ctx.set('player.readyState', 'loading');
-                        break;
-                    case 'pause':
-                        ctx.set('player.readyState', 'paused');
-                        break;
-                    case 'end-file':
-                        if (['error', 'unknown'].includes(data.reason)) {
-                            ctx.set('player.readyState', 'error');
-                        } else if (data.reason === 'quit') {
-                            ctx.set('plyaer.readyState', 'unload');
-                        } else if (data.reason === 'eof') {
-                            // try to play next track.
-                            vscode.commands.executeCommand('xmlya.player.goNext');
-                        }
-                        break;
+            this.mpv.on('start-file', () => {
+                ctx.set('player.readyState', 'loading');
+            }),
+            this.mpv.on('pause', () => {
+                ctx.set('player.readyState', 'paused');
+            }),
+            this.mpv.on('end-file', (data) => {
+                if (['error', 'unknown'].includes(data.reason)) {
+                    ctx.set('player.readyState', 'error');
+                } else if (data.reason === 'quit') {
+                    ctx.set('plyaer.readyState', 'unload');
+                } else if (data.reason === 'eof') {
+                    // try to play next track.
+                    vscode.commands.executeCommand('xmlya.player.goNext');
                 }
             }),
         ];
@@ -212,12 +208,12 @@ export class Player extends Runnable {
             this.sdk.getTraceToken({ trackId: this.playingTrack.trackId }),
         ]);
 
-        let id: NodeJS.Timeout | undefined = undefined;
+        let sub: vscode.Disposable | undefined = undefined;
         this.traceContext = {
             trackId: this.playingTrack.trackId,
             start: () => {
-                if (id === undefined) {
-                    id = setInterval(async () => {
+                if (sub === undefined) {
+                    sub = asyncInterval(async () => {
                         if (this.playingTrackInfo) {
                             const params = {
                                 trackId: this.playingTrackInfo.trackId,
@@ -233,9 +229,9 @@ export class Player extends Runnable {
                 }
             },
             stop: () => {
-                if (id !== undefined) {
-                    clearInterval(id);
-                    id = undefined;
+                if (sub !== undefined) {
+                    sub.dispose();
+                    sub = undefined;
                 }
             },
         };

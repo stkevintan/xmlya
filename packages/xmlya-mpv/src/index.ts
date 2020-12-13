@@ -1,5 +1,6 @@
 import path from 'path';
-import { Defer } from './common';
+import { Defer, Disposable } from './common';
+import { OperationError } from './error';
 import { LibMpv } from './libmpv';
 import { Logger, LogLevel } from './logger';
 import { ILibMpvOptions } from './types';
@@ -12,11 +13,15 @@ export interface IMpvOptions extends ILibMpvOptions {
     logLevel?: LogLevel;
 }
 
-export class Mpv extends LibMpv {
-    constructor(options: IMpvOptions) {
-        super(options);
+export class Mpv extends Disposable {
+    static async create(options: IMpvOptions = {}): Promise<Mpv> {
         Logger.logger = options.logger;
         Logger.Level = options.logLevel ?? 'info';
+        return new Mpv(await LibMpv.create(options));
+    }
+
+    constructor(private lib: LibMpv) {
+        super(() => lib.dispose());
     }
     /**
      * load source in timeout millionseconds
@@ -24,57 +29,61 @@ export class Mpv extends LibMpv {
      * @param timeout
      */
     async play(): Promise<void>;
-    async play(source: string, timeout?: number): Promise<void>;
-    async play(source?: string, timeout?: number): Promise<void> {
+    async play(source: string): Promise<void>;
+    async play(source?: string): Promise<void> {
         if (source === undefined) {
-            return await this.setProp('pause', false);
+            return await this.resume();
         }
         if (!source.startsWith('http')) {
             source = path.resolve(source);
         }
-        // wait for file loaded
-        const defer = new Defer(timeout, () => {
-            handle.dispose();
-        });
+        // const handlers: Disposable[] = [];
+        // // wait for file loaded
+        // const defer = new Defer(timeout, () => {
+        //     Disposable.from(...handlers).dispose();
+        // });
 
-        let started = false;
-        const handle = this.onEvent(({ event }) => {
-            if (event === 'start-file') {
-                started = true;
-            } else if (started && event === 'file-loaded') {
-                defer.resolve();
-                handle.dispose();
-            } else if (started && event === 'end-file') {
-                defer.reject('file load error');
-            }
-        });
-        await this.exec('loadfile', source);
-        await defer.asPromise();
+        // handlers.push(
+        //     this.lib.once('start-file', () => {
+        //         handlers.push(
+        //             this.lib.once('file-loaded', () => {
+        //                 defer.resolve();
+        //                 Disposable.from(...handlers).dispose();
+        //             }),
+        //             this.lib.once('end-file', () => {
+        //                 defer.reject(new OperationError(`file load error`));
+        //             })
+        //         );
+        //     })
+        // );
+
+        await this.lib.exec('loadfile', source);
+        // await defer.wait();
     }
 
     async pause(): Promise<void> {
-        await this.setProp('pause', true);
+        await this.lib.setProp('pause', true);
     }
 
     async resume(): Promise<void> {
-        await this.setProp('pause', false);
+        await this.lib.setProp('pause', false);
     }
 
     async togglePause(pause?: boolean): Promise<void> {
         if (pause === true) await this.pause();
         else if (pause === false) await this.resume();
-        else await this.cycleProp('pause');
+        else await this.lib.cycleProp('pause');
     }
 
     async stop(): Promise<void> {
-        await this.exec('stop');
+        await this.lib.exec('stop');
     }
 
     /**
      * get the speed
      */
     async getSpeed(): Promise<number> {
-        return await this.getProp('speed');
+        return await this.lib.getProp('speed');
     }
     /**
      * set the playback speed
@@ -83,28 +92,28 @@ export class Mpv extends LibMpv {
     async setSpeed(speed: number): Promise<void> {
         if (speed < 0.01) speed = 0.01;
         else if (speed > 100) speed = 100;
-        await this.setProp('speed', speed);
+        await this.lib.setProp('speed', speed);
     }
 
     /**
      * https://mpv.io/manual/stable/#options-start
      */
     async startOffset(start: string): Promise<void> {
-        return await this.setProp('start', start);
+        return await this.lib.setProp('start', start);
     }
 
     /**
      * https://mpv.io/manual/stable/#options-start
      */
     async endOffset(end: string): Promise<void> {
-        return await this.setProp('end', end);
+        return await this.lib.setProp('end', end);
     }
 
     /**
      * get volume, 0 - 100
      */
     async getVolume(): Promise<number> {
-        return await this.getProp('volume');
+        return await this.lib.getProp('volume');
     }
 
     /**
@@ -114,19 +123,19 @@ export class Mpv extends LibMpv {
     async setVolume(volume: number): Promise<void> {
         if (volume < 0) volume = 0;
         else if (volume > 100) volume = 100;
-        await this.setProp('volume', volume);
+        await this.lib.setProp('volume', volume);
     }
 
     async addVolume(delta: number): Promise<void> {
-        await this.addProp('volume', delta);
+        await this.lib.addProp('volume', delta);
     }
 
     async mute(): Promise<void> {
-        await this.setProp('mute', true);
+        await this.lib.setProp('mute', true);
     }
 
     async unmute(): Promise<void> {
-        await this.setProp('mute', false);
+        await this.lib.setProp('mute', false);
     }
 
     async toggleMute(mute?: boolean): Promise<void> {
@@ -135,40 +144,40 @@ export class Mpv extends LibMpv {
         } else if (mute === false) {
             await this.unmute();
         } else {
-            await this.cycleProp('mute');
+            await this.lib.cycleProp('mute');
         }
     }
 
     async isMuted(): Promise<boolean> {
-        return await this.getProp('mute');
+        return await this.lib.getProp('mute');
     }
 
     /**
      * get time position in seconds
      */
     async getTimePos(): Promise<number> {
-        return await this.getProp('time-pos');
+        return await this.lib.getProp('time-pos');
     }
 
     /**
      * duration of current file. may be NaN if duration is unknown
      */
     async getDuration(): Promise<number> {
-        return await this.getProp('duration').catch(() => null);
+        return await this.lib.getProp('duration').catch(() => null);
     }
 
     /**
      * estimate remaining time in seconds
      */
     async getTimeRemaining(): Promise<number> {
-        return await this.getProp('time-remaining');
+        return await this.lib.getProp('time-remaining');
     }
 
     /**
      * get percent of current position, returned as a number between 0 , 100
      */
     async getPercentPosition(): Promise<number> {
-        return await this.getProp('percent-pos');
+        return await this.lib.getProp('percent-pos');
     }
 
     /**
@@ -177,17 +186,22 @@ export class Mpv extends LibMpv {
      * @param mode
      */
     async seek(pos: number, mode: 'relative' | 'absolute' | 'absolute-percent' | 'relative-percent' = 'relative') {
-        const defer = new Defer(() => handle.dispose());
-        let started = false;
-        const handle = this.onEvent(({ event }) => {
-            if (event === 'seek') {
-                started = true;
-            } else if (started && event === 'playback-restart') {
-                handle.dispose();
-                defer.resolve();
-            }
-        });
-        await this.exec('seek', pos, mode, 'exactly');
-        await defer.asPromise();
+        // const handlers: Disposable[] = [];
+        // const defer = new Defer(() => Disposable.from(...handlers).dispose());
+        // handlers.push(this.lib.once('seek', () => handlers.push(this.lib.on('playback-restart'))))
+        // let started = false;
+        // const handle = this.onEvent(({ event }) => {
+        //     if (event === 'seek') {
+        //         started = true;
+        //     } else if (started && event === 'playback-restart') {
+        //         handle.dispose();
+        //         defer.resolve();
+        //     }
+        // });
+        await this.lib.exec('seek', pos, mode, 'exactly');
+        // await defer.wait();
     }
+    on = this.lib.on.bind(this.lib);
+    once = this.lib.once.bind(this.lib);
+    watch = this.lib.watchProp.bind(this.lib);
 }

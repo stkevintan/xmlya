@@ -35,5 +35,6 @@ export interface IResultReply {
 export type IReply = IResultReply | IEventReply;
 
 export function isResultReply(reply: IReply): reply is IResultReply {
-    return 'request_id' in reply;
+    // eslint-disable-next-line eqeqeq
+    return 'request_id' in reply && reply.request_id != null;
 }
