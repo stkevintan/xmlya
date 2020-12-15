@@ -21,6 +21,23 @@ export class Connection extends EventEmitter {
 
     private tasks = new Map<number, ITaskContext>();
 
+    static async establish(socketPath: string): Promise<Connection> {
+        const defer = new Defer();
+        Logger.info('try to connect the mpv socket server...');
+        const socket = new Socket()
+            .connect(socketPath)
+            .once('ready', () => {
+                Logger.debug('socket connected');
+                defer.resolve();
+            })
+            .once('error', (err) => {
+                socket.destroy();
+                defer.reject(new SocketError(err));
+            });
+        await defer.wait();
+        return new Connection(socket);
+    }
+
     constructor(private socket: Socket) {
         super(() => this.socket.removeAllListeners().destroy());
         this.socket.on('data', this.onMessage);
@@ -32,39 +49,39 @@ export class Connection extends EventEmitter {
 
     send = async <T>(command: string, ...params: any[]): Promise<T> => {
         const id = this.lastReqId++;
-        const defer = new Defer<T>();
         Logger.debug('send command:', id, command, ...params);
-        this.socket.write(
-            JSON.stringify({ request_id: id, command: [command, ...params.filter((x) => x !== undefined)] }),
-            (err) => {
-                if (err) {
-                    defer.reject(new SocketError(err));
-                    return;
-                }
-                this.tasks.set(id, { defer, command });
+        await this.rawSend({ command: [command, ...params.filter((x) => x !== undefined)] });
+        // wait for the result.
+        const defer = new Defer<T>();
+        this.tasks.set(id, { defer, command });
+        return await defer.wait();
+    };
+
+    private rawSend = async (obj: Record<string, any>) => {
+        const id = this.lastReqId++;
+        const defer = new Defer<number>();
+        this.socket.write(JSON.stringify({ ...obj, request_id: id }) + '\n', (err) => {
+            if (err) {
+                defer.reject(new SocketError(err));
+            } else {
+                defer.resolve(id);
             }
-        );
+        });
         return await defer.wait();
     };
 
     observe(name: string) {
         const id = this.lastObsId++;
-        this.socket.write(
-            JSON.stringify({
-                request_id: this.lastReqId++,
-                command: ['observe_property', id, name],
-            }),
-            (err) => {
-                Logger.debug('send err', err);
-            }
-        );
+        this.rawSend({
+            command: ['observe_property', id, name],
+        }).catch((err) => {
+            Logger.error('observe failed on property', name, err);
+        });
+
         return new Disposable(() => {
-            this.socket.write(
-                JSON.stringify({
-                    request_id: this.lastReqId++,
-                    command: ['unobserve_property', id],
-                })
-            );
+            this.rawSend({
+                command: ['unobserve_property', id],
+            });
         });
     }
 

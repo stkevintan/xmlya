@@ -3,7 +3,6 @@ import { Disposable, retryOnError, uniqArguments, getRandomId } from './common';
 import { Callback, IEventReply, ILibMpvOptions } from './types';
 import { Logger } from './logger';
 import { Connection, ConnectionBuiltinEvents } from './connection';
-import  net from 'net';
 
 // default Arguments
 // --no-config Do not load default configuration files. This prevents loading of both the user-level and system-wide mpv.conf and input.conf files
@@ -68,35 +67,7 @@ export class LibMpv extends Disposable {
 
         Logger.info('mpv start successfully');
         try {
-            const socket = await retryOnError(
-                () =>
-                    new Promise<net.Socket>((resolve, reject) => {
-                        Logger.info('try to connect the mpv socket server...');
-                        const socket = new net.Socket()
-                            .connect(socketPath)
-                            .once('ready', () => {
-                                Logger.debug('socket connected');
-                                resolve(socket);
-                            })
-                            .once('error', (err) => {
-                                reject(err);
-                                Logger.debug('socket connect failed:', err);
-                                socket.destroy();
-                            });
-                    })
-            );
-            socket.on('data', (d) => {
-                Logger.info('receive:', d);
-            });
-
-            socket.on('drain', (err:boolean) => {
-                Logger.info('drain', err);
-            });
-
-            socket.on('error', err => {
-                Logger.error('socket error', err);
-            });
-            const conn = new Connection(socket);
+            const conn = await retryOnError(() => Connection.establish(socketPath));
             // when socket closed, kill the mpv process.
             conn.once(ConnectionBuiltinEvents.Close, () => mpvd.kill());
             return new LibMpv(conn);
