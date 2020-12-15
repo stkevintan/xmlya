@@ -30,26 +30,6 @@ export class Connection extends EventEmitter {
         });
     }
 
-    static async establish(socketPath: string): Promise<Connection> {
-        const defer = new Defer((e) => {
-            Logger.error('connect failed', e);
-            socket?.removeAllListeners();
-            socket?.destroy();
-        });
-
-        Logger.info('try to connect the mpv socket server...');
-
-        const socket = new Socket()
-            .connect(socketPath)
-            .once('ready', () => {
-                Logger.debug('socket connected');
-                defer.resolve();
-            })
-            .once('error', defer.reject);
-        await defer.wait();
-        return new Connection(socket);
-    }
-
     send = async <T>(command: string, ...params: any[]): Promise<T> => {
         const id = this.lastReqId++;
         const defer = new Defer<T>();

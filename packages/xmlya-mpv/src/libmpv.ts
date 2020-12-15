@@ -3,6 +3,7 @@ import { Disposable, retryOnError, uniqArguments, getRandomId } from './common';
 import { Callback, IEventReply, ILibMpvOptions } from './types';
 import { Logger } from './logger';
 import { Connection, ConnectionBuiltinEvents } from './connection';
+import  net from 'net';
 
 // default Arguments
 // --no-config Do not load default configuration files. This prevents loading of both the user-level and system-wide mpv.conf and input.conf files
@@ -26,7 +27,7 @@ export class LibMpv extends Disposable {
         return process.platform === 'win32' ? `\\\\.\\pipe\\mpvserver-${id}` : `/tmp/node-mpv-${id}.sock`;
     }
 
-    private static moreArgs(options: ILibMpvOptions) {
+    private static restArgs(options: ILibMpvOptions) {
         const ret: string[] = [];
         const { volume, mute, speed } = options;
         if (typeof volume === 'number' && volume >= 0 && volume <= 100) {
@@ -54,7 +55,7 @@ export class LibMpv extends Disposable {
         const combinedArguments = uniqArguments([
             `--input-ipc-server=${socketPath}`,
             ...baseArguments,
-            ...this.moreArgs(options),
+            ...this.restArgs(options),
             ...(options.args ?? []),
         ]);
 
@@ -67,7 +68,35 @@ export class LibMpv extends Disposable {
 
         Logger.info('mpv start successfully');
         try {
-            const conn = await retryOnError(() => Connection.establish(socketPath));
+            const socket = await retryOnError(
+                () =>
+                    new Promise<net.Socket>((resolve, reject) => {
+                        Logger.info('try to connect the mpv socket server...');
+                        const socket = new net.Socket()
+                            .connect(socketPath)
+                            .once('ready', () => {
+                                Logger.debug('socket connected');
+                                resolve(socket);
+                            })
+                            .once('error', (err) => {
+                                reject(err);
+                                Logger.debug('socket connect failed:', err);
+                                socket.destroy();
+                            });
+                    })
+            );
+            socket.on('data', (d) => {
+                Logger.info('receive:', d);
+            });
+
+            socket.on('drain', (err:boolean) => {
+                Logger.info('drain', err);
+            });
+
+            socket.on('error', err => {
+                Logger.error('socket error', err);
+            });
+            const conn = new Connection(socket);
             // when socket closed, kill the mpv process.
             conn.once(ConnectionBuiltinEvents.Close, () => mpvd.kill());
             return new LibMpv(conn);
@@ -103,7 +132,7 @@ export class LibMpv extends Disposable {
 
     // DO NOT CALL `exec` in above methods
     async exec<T = any>(command: string, ...params: any[]): Promise<T> {
-        return await this.conn.send(command, params);
+        return await this.conn.send(command, ...params);
     }
 
     //https://mpv.io/manual/stable/#properties
