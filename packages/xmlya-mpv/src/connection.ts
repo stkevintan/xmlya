@@ -85,12 +85,9 @@ export class Connection extends EventEmitter {
     }
 
     private onMessage = (chunk: Buffer) => {
-        const raws = chunk
-            .toString('utf-8')
-            .split('\n')
-            .map((m) => m.trim())
-            .filter((m) => m);
+        const raws = chunk.toString('utf-8').split('\n');
         for (const raw of raws) {
+            if (!raw) continue;
             const message = JSON.parse(raw) as IReply;
             if (isResultReply(message)) {
                 const { request_id, error, data } = message;
