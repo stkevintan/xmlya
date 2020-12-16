@@ -37,28 +37,16 @@ export class Mpv extends Disposable {
         if (!source.startsWith('http')) {
             source = path.resolve(source);
         }
-        // const handlers: Disposable[] = [];
-        // // wait for file loaded
-        // const defer = new Defer(timeout, () => {
-        //     Disposable.from(...handlers).dispose();
-        // });
-
-        // handlers.push(
-        //     this.lib.once('start-file', () => {
-        //         handlers.push(
-        //             this.lib.once('file-loaded', () => {
-        //                 defer.resolve();
-        //                 Disposable.from(...handlers).dispose();
-        //             }),
-        //             this.lib.once('end-file', () => {
-        //                 defer.reject(new OperationError(`file load error`));
-        //             })
-        //         );
-        //     })
-        // );
-
         await this.lib.exec('loadfile', source);
-        // await defer.wait();
+        // wait for the start-file event
+        await new Promise((res) => this.lib.on('start-file', res));
+        // determine the load result.
+        const defer = new Defer(() => Disposable.from(...handlers).dispose());
+        const handlers: Disposable[] = [
+            this.lib.once('file-loaded', defer.resolve),
+            this.lib.once('end-file', () => defer.reject(new OperationError(`file load error`))),
+        ];
+        await defer.wait();
     }
 
     async pause(): Promise<void> {
@@ -186,20 +174,7 @@ export class Mpv extends Disposable {
      * @param mode
      */
     async seek(pos: number, mode: 'relative' | 'absolute' | 'absolute-percent' | 'relative-percent' = 'relative') {
-        // const handlers: Disposable[] = [];
-        // const defer = new Defer(() => Disposable.from(...handlers).dispose());
-        // handlers.push(this.lib.once('seek', () => handlers.push(this.lib.on('playback-restart'))))
-        // let started = false;
-        // const handle = this.onEvent(({ event }) => {
-        //     if (event === 'seek') {
-        //         started = true;
-        //     } else if (started && event === 'playback-restart') {
-        //         handle.dispose();
-        //         defer.resolve();
-        //     }
-        // });
         await this.lib.exec('seek', pos, mode, 'exactly');
-        // await defer.wait();
     }
     on = this.lib.on.bind(this.lib);
     once = this.lib.once.bind(this.lib);

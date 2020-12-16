@@ -37,18 +37,18 @@ export class Defer<T = void> {
     private _resolve?: (value: T) => void;
     private _reject?: (reason?: any) => void;
     private _promise: Promise<T>;
-    private tapOnError?: (err: any) => void;
+    private finallyCallback?: (err?: any) => void;
     private timeout?: number;
     private token?: NodeJS.Timeout;
 
-    constructor(tapOnError?: (err: any) => void);
-    constructor(timeout?: number, tapOnError?: (err: any) => void);
+    constructor(finallyCallback?: (err?: any) => void);
+    constructor(timeout?: number, finallyCallback?: (err?: any) => void);
     constructor(arg1?: any, arg2?: any) {
         if (typeof arg1 === 'number') {
             this.timeout = arg1;
-            this.tapOnError = arg2;
+            this.finallyCallback = arg2;
         } else if (typeof arg1 === 'function') {
-            this.tapOnError = arg1;
+            this.finallyCallback = arg1;
         }
 
         this._promise = new Promise<T>((res, rej) => {
@@ -65,17 +65,15 @@ export class Defer<T = void> {
             clearTimeout(this.token);
         }
         this._resolve?.(value);
+        this.finallyCallback?.();
     };
 
     reject = (reason?: any) => {
         if (this.token !== undefined) {
             clearTimeout(this.token);
         }
-        try {
-            this.tapOnError?.(reason);
-        } finally {
-            this._reject?.(reason);
-        }
+        this._reject?.(reason);
+        this.finallyCallback?.(reason);
     };
 
     wait() {
@@ -109,26 +107,26 @@ export class EventEmitter extends Disposable {
     }
 }
 
-const voidSym = Symbol('void');
-export const memoAsync = <T extends IDisposable>(fn: () => Promise<T>) => {
-    let cache: any = voidSym;
-    const cachedFn = (): Promise<T> => {
-        return cache === voidSym
-            ? (cache = fn().catch((e) => {
-                  //when error happens, auto clear cache.
-                  cache = voidSym;
-                  return Promise.reject(e);
-              }))
-            : cache;
-    };
-    cachedFn.flush = () => {
-        if (cache !== voidSym) {
-            cache.then((ret: IDisposable) => ret?.dispose());
-        }
-        cache = voidSym;
-    };
-    return cachedFn;
-};
+// const voidSym = Symbol('void');
+// export const memoAsync = <T extends IDisposable>(fn: () => Promise<T>) => {
+//     let cache: any = voidSym;
+//     const cachedFn = (): Promise<T> => {
+//         return cache === voidSym
+//             ? (cache = fn().catch((e) => {
+//                   //when error happens, auto clear cache.
+//                   cache = voidSym;
+//                   return Promise.reject(e);
+//               }))
+//             : cache;
+//     };
+//     cachedFn.flush = () => {
+//         if (cache !== voidSym) {
+//             cache.then((ret: IDisposable) => ret?.dispose());
+//         }
+//         cache = voidSym;
+//     };
+//     return cachedFn;
+// };
 
 export function uniqArguments(args: string[]): string[] {
     const ret: string[] = [];

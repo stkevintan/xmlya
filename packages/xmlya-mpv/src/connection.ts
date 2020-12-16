@@ -48,9 +48,7 @@ export class Connection extends EventEmitter {
     }
 
     send = async <T>(command: string, ...params: any[]): Promise<T> => {
-        const id = this.lastReqId++;
-        Logger.debug('send command:', id, command, ...params);
-        await this.rawSend({ command: [command, ...params.filter((x) => x !== undefined)] });
+        const id = await this.rawSend({ command: [command, ...params.filter((x) => x !== undefined)] });
         // wait for the result.
         const defer = new Defer<T>();
         this.tasks.set(id, { defer, command });
@@ -59,6 +57,7 @@ export class Connection extends EventEmitter {
 
     private rawSend = async (obj: Record<string, any>) => {
         const id = this.lastReqId++;
+        Logger.debug('send command:', id, obj.command);
         const defer = new Defer<number>();
         this.socket.write(JSON.stringify({ ...obj, request_id: id }) + '\n', (err) => {
             if (err) {
@@ -86,7 +85,6 @@ export class Connection extends EventEmitter {
     }
 
     private onMessage = (chunk: Buffer) => {
-        Logger.debug('receive socket:', chunk.toString('utf-8'));
         const raws = chunk
             .toString('utf-8')
             .split('\n')
@@ -99,15 +97,17 @@ export class Connection extends EventEmitter {
                 const task = this.tasks.get(request_id);
                 this.tasks.delete(request_id);
                 if (task) {
+                    Logger.info('receive command reply:', message);
                     if (error && error !== 'success') {
                         task.defer.reject(new CommandError(task.command, error));
                     } else {
                         task.defer.resolve(data);
                     }
-                    return;
+                } else {
+                    Logger.warn('unhandle command reply: ', raw);
                 }
-                Logger.warn('unhandle message: ', raw);
             } else {
+                Logger.info('receive event: ', message);
                 this.emit(message.event, message);
             }
         }
