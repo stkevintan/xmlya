@@ -299,7 +299,7 @@ export class Player extends Runnable {
                           })
                   )),
         ];
-        quickPick.render('Set volume, type a integer between 0 to 100...', generateVols());
+        quickPick.render('Select a option or type an integer between 0 to 100...', generateVols());
         quickPick.onDidChangeValue((value) => {
             const vol = Number(value);
             if (value && !Number.isNaN(vol) && vol >= 0 && vol <= 100) {
@@ -408,7 +408,7 @@ export class Player extends Runnable {
                 }
             }
         } else if (choice === 'Open in Browser') {
-            openUrl(src);
+            vscode.env.openExternal(vscode.Uri.parse(src));
         }
     }
 
@@ -508,5 +508,11 @@ export class Player extends Runnable {
         } else {
             vscode.window.showWarningMessage('Failed to get previous track');
         }
+    }
+    @command('player.showProgress')
+    async showProgress() {
+        const channel = vscode.window.createOutputChannel('Ximalaya');
+        channel.show();
+        channel.appendLine(`Now Playing: ${this.playingTrackInfo?.trackName}`);
     }
 }

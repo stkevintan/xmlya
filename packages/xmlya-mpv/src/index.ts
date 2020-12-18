@@ -37,9 +37,10 @@ export class Mpv extends Disposable {
         if (!source.startsWith('http')) {
             source = path.resolve(source);
         }
-        await this.lib.exec('loadfile', source);
+        // Do not await following command or the start-file event will be missed.
+        this.lib.exec('loadfile', source);
         // wait for the start-file event
-        await new Promise((res) => this.lib.on('start-file', res));
+        await new Promise((res) => this.lib.once('start-file', res));
         // determine the load result.
         const defer = new Defer(() => Disposable.from(...handlers).dispose());
         const handlers: Disposable[] = [

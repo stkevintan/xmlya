@@ -29,14 +29,14 @@
                     },
                     "xmlya.mpvBinary": {
                         "type": "string",
-                        "default": "",
-                        "description": "absolute path for mpv binary (need restart to take effect)",
+                        "default": "mpv",
+                        "markdownDescription": "absolute path for mpv binary (need restart to take effect, see [install guide](https://mpv.io/installation/))",
                         "scope": "application"
                     },
                     "xmlya.mpvArguments": {
                         "type": "array",
                         "default": [],
-                        "description": "extra arguments for mpv (need restart to take effect)",
+                        "markdownDescription": "extra arguments for mpv (need restart to take effect, see [mpv manual](https://mpv.io/manual/stable/))",
                         "scope": "application"
                     },
                     "xmlya.playctrls": {
