@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
 import { command, Runnable } from '../runnable';
-import { IContextTracks, IPaginator, ISortablePaginator, ITrackAudio } from '@xmlya/sdk';
+import { IContextTracks, IPaginator, ITrackAudio } from '@xmlya/sdk';
 import { Logger } from '../lib/logger';
 import { ConfigKeys, Configuration } from '../configuration';
 import { StatusBar } from '../components/status-bar';
-import { asyncInterval, ellipsis, formatDuration, openUrl } from '../lib';
+import { asyncInterval, delay, ellipsis, formatDuration, openUrl } from '../lib';
 import { Mpv } from '@xmlya/mpv';
 import { QuickPick, QuickPickTreeLeaf, QuickPickTreeParent } from '../components/quick-pick';
 import controls from '../playctrls.json';
@@ -12,6 +12,8 @@ import { ContextService } from 'src/context';
 import { createWriteStream } from 'fs';
 import { pipeline } from 'stream';
 import { promisify } from 'util';
+import ansiEscapes from 'ansi-escapes';
+import { Terminal, TerminalEvents } from '../components/terminal';
 const pipe = promisify(pipeline);
 
 export class Player extends Runnable {
@@ -19,6 +21,8 @@ export class Player extends Runnable {
 
     private quickPick: QuickPick = new QuickPick();
     private playingTrack?: ITrackAudio;
+
+    private terminal!: Terminal;
 
     private mpv!: Mpv;
 
@@ -44,6 +48,7 @@ export class Player extends Runnable {
             logger: console.log,
         });
 
+        this.terminal = new Terminal();
         // put context to this.
         this.ctx = context;
         const syncCtxRefs = this.syncContext(context);
@@ -59,9 +64,17 @@ export class Player extends Runnable {
             }
         });
 
-        return vscode.Disposable.from(...syncCtxRefs, ...syncConfRefs, statusBar, this.quickPick, traceRef, {
-            dispose: () => this.traceContext?.start(),
-        });
+        return vscode.Disposable.from(
+            ...syncCtxRefs,
+            ...syncConfRefs,
+            statusBar,
+            this.quickPick,
+            this.terminal,
+            traceRef,
+            {
+                dispose: () => this.traceContext?.start(),
+            }
+        );
     }
 
     private syncConf(): vscode.Disposable[] {
@@ -222,7 +235,6 @@ export class Player extends Runnable {
                                 breakSecond: Math.floor(await this.mpv.getTimePos()),
                                 albumId: this.playingTrackInfo.albumId,
                             };
-                            console.debug('send trace', params);
                             await this.sdk.traceStats(params);
                         }
                     }, interval * 1000);
@@ -256,49 +268,49 @@ export class Player extends Runnable {
     @command('player.setVolume')
     async setVolume() {
         const quickPick = new QuickPick({ disposeOnHide: true });
-        const generateVols = (value?: number) => [
-            this.ctx.get('player.isMuted')
-                ? new QuickPickTreeLeaf('$(unmute)', {
-                      description: 'Unmute',
-                      alwaysShow: true,
-                      onClick: () => {
-                          quickPick.hide();
-                          this.toggleMute(false);
-                      },
-                  })
-                : new QuickPickTreeLeaf('$(mute)', {
-                      description: 'Mute',
-                      alwaysShow: true,
-                      onClick: () => {
-                          quickPick.hide();
-                          this.toggleMute(true);
-                      },
-                  }),
-            ...(value !== undefined
-                ? [
-                      new QuickPickTreeLeaf(`$(symbol-variable)`, {
+        const generateVols = (value?: number) =>
+            [
+                this.ctx.get('player.isMuted')
+                    ? new QuickPickTreeLeaf('$(unmute)', {
+                          description: 'Unmute',
+                          alwaysShow: true,
+                          onClick: () => {
+                              quickPick.hide();
+                              this.toggleMute(false);
+                          },
+                      })
+                    : new QuickPickTreeLeaf('$(mute)', {
+                          description: 'Mute',
+                          alwaysShow: true,
+                          onClick: () => {
+                              quickPick.hide();
+                              this.toggleMute(true);
+                          },
+                      }),
+            ].concat(
+                value === undefined
+                    ? Array.from(
+                          { length: 10 },
+                          (_, i) =>
+                              new QuickPickTreeLeaf('$(symbol-variable)', {
+                                  active: (10 - i) * 10 === this.ctx.get('player.volume'),
+                                  description: `${(10 - i) * 10}`,
+                                  onClick: () => {
+                                      quickPick.hide();
+                                      this.mpv.toggleMute(false);
+                                      this.mpv.setVolume((10 - i) * 10);
+                                  },
+                              })
+                      )
+                    : new QuickPickTreeLeaf(`$(symbol-variable)`, {
                           description: `${value}`,
                           onClick: () => {
                               quickPick.hide();
                               this.mpv.toggleMute(false);
                               this.mpv.setVolume(value);
                           },
-                      }),
-                  ]
-                : Array.from(
-                      { length: 10 },
-                      (_, i) =>
-                          new QuickPickTreeLeaf('$(symbol-variable)', {
-                              active: (10 - i) * 10 === this.ctx.get('player.volume'),
-                              description: `${(10 - i) * 10}`,
-                              onClick: () => {
-                                  quickPick.hide();
-                                  this.mpv.toggleMute(false);
-                                  this.mpv.setVolume((10 - i) * 10);
-                              },
-                          })
-                  )),
-        ];
+                      })
+            );
         quickPick.render('Select a option or type an integer between 0 to 100...', generateVols());
         quickPick.onDidChangeValue((value) => {
             const vol = Number(value);
@@ -393,6 +405,7 @@ export class Player extends Runnable {
             });
             if (uri?.fsPath) {
                 try {
+                    //TODO: report download progress.
                     vscode.window.withProgress(
                         {
                             title: 'Downloading...',
@@ -509,10 +522,38 @@ export class Player extends Runnable {
             vscode.window.showWarningMessage('Failed to get previous track');
         }
     }
-    @command('player.showProgress')
-    async showProgress() {
-        const channel = vscode.window.createOutputChannel('Ximalaya');
-        channel.show();
-        channel.appendLine(`Now Playing: ${this.playingTrackInfo?.trackName}`);
+
+    @command('player.toggleProgress')
+    async toggleProgress() {
+        if (this.terminal.shown) {
+            this.terminal.hide();
+            return;
+        }
+        let sub: vscode.Disposable | undefined;
+        this.terminal.event((e) => {
+            if (e === TerminalEvents.Hide || e === TerminalEvents.Close) {
+                sub?.dispose();
+            }
+            if (e === TerminalEvents.Show) {
+                let writtenLines = 0;
+                sub = asyncInterval(async () => {
+                    if (writtenLines) {
+                        this.terminal.eraseLine(writtenLines);
+                        writtenLines = 0;
+                    }
+                    if (['playing', 'paused', 'seeking'].includes(this.ctx.get<string>('player.readyState')!)) {
+                        const pos = Math.floor(await this.mpv.getPercentPosition());
+                        this.terminal.appendLine(`Now playing: ${this.playingTrackInfo?.trackName}`);
+                        this.terminal.append(
+                            `${pos}% [${Array.from({ length: 50 }, (_, index) => (index * 2 > pos ? ' ' : '=')).join(
+                                ''
+                            )}]`
+                        );
+                        writtenLines += 2;
+                    }
+                }, 1000);
+            }
+        });
+        this.terminal.show();
     }
 }
