@@ -17,6 +17,22 @@
         "*"
     ],
     "contributes": {
+        "viewsContainers": {
+            "activitybar": [{
+                "icon": "static/logo_mask.svg",
+                "id": "xmlya-container",
+                "title": "Ximalaya FM"
+            }]
+		},
+        "views": {
+            "xmlya-container": [
+                {
+                    "id": "xmlya-user",
+                    "name": "User",
+                    "contextualTitle": "Xmlya User"
+                }
+            ]
+        },
         "configuration": [
             {
                 "title": "Ximalaya",
