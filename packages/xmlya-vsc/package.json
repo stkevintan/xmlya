@@ -6,7 +6,7 @@
     "publisher": "ktan",
     "author": "Kevin Tan",
     "main": "./dist/extension",
-    "icon": "static/icon.png",
+    "icon": "static/logo_full.svg",
     "engines": {
         "vscode": "^1.19.0"
     },
