@@ -3,16 +3,20 @@
     "parser": "@typescript-eslint/parser",
     "parserOptions": {
         "ecmaVersion": 6,
-        "sourceType": "module"
+        "sourceType": "module",
+        "project": "tsconfig.json"
     },
     "plugins": [
         "@typescript-eslint"
     ],
     "rules": {
+        "no-duplicate-imports": "error",
+        "@typescript-eslint/no-namespace": "off",
+        "@typescript-eslint/no-floating-promises": "error",
         "@typescript-eslint/naming-convention": "off",
         "@typescript-eslint/semi": "warn",
         "curly": "off",
-        "eqeqeq": "warn",
+        "eqeqeq": ["warn", "smart"],
         "no-throw-literal": "warn",
         "semi": "off"
     }

@@ -1,7 +1,7 @@
 import { ISortablePaginator } from '@xmlya/sdk';
 import { QuickPick, QuickPickTreeLeaf, QuickPickTreeParent } from 'src/components/quick-pick';
 import { command, Runnable } from 'src/runnable';
-import { commands, Disposable } from 'vscode';
+import { commands } from 'vscode';
 
 interface IAlbumProp {
     title: string;
@@ -31,7 +31,7 @@ export class Common extends Runnable {
                             description: track.createDateFormat,
                             onClick: (picker) => {
                                 picker.hide();
-                                commands.executeCommand('xmlya.player.playTrack', track.trackId, album.id);
+                                void commands.executeCommand('xmlya.player.playTrack', track.trackId, album.id);
                             },
                         })
                 ),
@@ -47,10 +47,10 @@ export class Common extends Runnable {
     @command('common.showUser')
     async showUser(quickPick: QuickPick, uid: number) {
         if (quickPick === undefined || uid === undefined) return;
-        quickPick.loading('...');
+        quickPick.loading();
         const [user, pub] = await Promise.all([this.sdk.getUserInfo({ uid }), this.sdk.getUserPublish({ uid })]);
         quickPick.render(user.nickName, [
-            new QuickPickTreeParent('Basic info', {
+            new QuickPickTreeParent('Profile', {
                 children: [
                     new QuickPickTreeLeaf('$(location)', {
                         description: `${user.province} ${user.city}`,
@@ -73,7 +73,7 @@ export class Common extends Runnable {
                             detail: `${item.description}`,
                             onClick: () => {
                                 quickPick.hide();
-                                this.showAlbumTracks(quickPick, item);
+                                void this.showAlbumTracks(quickPick, item);
                             },
                         })
                 ),
@@ -87,7 +87,7 @@ export class Common extends Runnable {
                             detail: item.albumTitle,
                             onClick: () => {
                                 quickPick.hide();
-                                commands.executeCommand('xmlya.player.playTrack', item.trackId, item.albumId);
+                                void commands.executeCommand('xmlya.player.playTrack', item.trackId, item.albumId);
                             },
                         })
                 ),

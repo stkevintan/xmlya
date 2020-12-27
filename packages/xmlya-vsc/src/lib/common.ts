@@ -105,6 +105,6 @@ export function asyncInterval(cb: Action<Promise<void>>, ms: number): Disposable
             await delay(ms);
         }
     };
-    loop();
+    void loop();
     return { dispose: () => (working = false) };
 }

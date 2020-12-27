@@ -54,7 +54,7 @@ export class App extends Runnable {
                                     detail: entry.childTitle,
                                     onClick: async (picker) => {
                                         picker.hide();
-                                        vscode.commands.executeCommand(
+                                        void vscode.commands.executeCommand(
                                             'xmlya.player.playTrack',
                                             entry.childId,
                                             entry.itemId
@@ -80,7 +80,7 @@ export class App extends Runnable {
                         detail: album.description,
                         description: album.subTitle,
                         onClick: () => {
-                            vscode.commands.executeCommand('xmlya.common.showAlbumTracks', this.quickPick, album);
+                            void vscode.commands.executeCommand('xmlya.common.showAlbumTracks', this.quickPick, album);
                         },
                     })
             )
@@ -102,13 +102,13 @@ export class App extends Runnable {
                             detail: track.albumName,
                             onClick: (picker) => {
                                 picker.hide();
-                                vscode.commands.executeCommand('xmlya.player.playTrack', track.trackId);
+                                void vscode.commands.executeCommand('xmlya.player.playTrack', track.trackId);
                             },
                         })
                 ),
                 pagination: favorites,
                 onPageChange: (pageNum) => {
-                    this.renderFavorites({ pageNum, pageSize: params?.pageSize }, true);
+                    void this.renderFavorites({ pageNum, pageSize: params?.pageSize }, true);
                 },
             },
             bySelf ? 'replace' : 'push'
@@ -127,7 +127,7 @@ export class App extends Runnable {
                         description: album.subTitle,
                         detail: album.description,
                         onClick: () => {
-                            vscode.commands.executeCommand('xmlya.common.showAlbumTracks', this.quickPick, album);
+                            void vscode.commands.executeCommand('xmlya.common.showAlbumTracks', this.quickPick, album);
                         },
                     })
             ),

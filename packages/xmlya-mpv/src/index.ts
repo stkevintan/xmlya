@@ -38,7 +38,7 @@ export class Mpv extends Disposable {
             source = path.resolve(source);
         }
         // Do not await following command or the start-file event will be missed.
-        this.lib.exec('loadfile', source);
+        void this.lib.exec('loadfile', source);
         // wait for the start-file event
         await new Promise((res) => this.lib.once('start-file', res));
         // determine the load result.

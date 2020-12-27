@@ -12,7 +12,6 @@ import { ContextService } from 'src/context';
 import { createWriteStream } from 'fs';
 import { pipeline } from 'stream';
 import { promisify } from 'util';
-import ansiEscapes from 'ansi-escapes';
 import { Terminal, TerminalEvents } from '../components/terminal';
 const pipe = promisify(pipeline);
 
@@ -60,7 +59,7 @@ export class Player extends Runnable {
         // start trace
         const traceRef = this.ctx.onChange((keys) => {
             if (keys.includes('player.readyState')) {
-                this.toggleTrace(this.ctx.get('player.readyState') === 'playing');
+                void this.toggleTrace(this.ctx.get('player.readyState') === 'playing');
             }
         });
 
@@ -80,11 +79,11 @@ export class Player extends Runnable {
     private syncConf(): vscode.Disposable[] {
         const syncStart = () => {
             const { playbackStart } = Configuration;
-            this.mpv.startOffset(playbackStart ? `+${Configuration.playbackStart}` : 'none');
+            void this.mpv.startOffset(playbackStart ? `+${Configuration.playbackStart}` : 'none');
         };
         const syncEnd = () => {
             const { playbackEnd } = Configuration;
-            this.mpv.endOffset(playbackEnd ? `-${Configuration.playbackEnd}` : 'none');
+            void this.mpv.endOffset(playbackEnd ? `-${Configuration.playbackEnd}` : 'none');
         };
         syncStart();
         syncEnd();
@@ -111,7 +110,7 @@ export class Player extends Runnable {
             }),
             this.mpv.watch<boolean>('mute', (mute) => {
                 ctx.set('player.isMuted', !!mute);
-                ctx.globalState.update('xmlya.player.isMuted', !!mute);
+                void ctx.globalState.update('xmlya.player.isMuted', !!mute);
             }),
 
             this.mpv.watch<boolean>('seek', (seeking) => {
@@ -119,11 +118,11 @@ export class Player extends Runnable {
             }),
             this.mpv.watch<number>('volume', (volume) => {
                 ctx.set('player.volume', volume);
-                ctx.globalState.update('xmlya.player.volume', volume);
+                void ctx.globalState.update('xmlya.player.volume', volume);
             }),
             this.mpv.watch<number>('speed', (speed) => {
                 ctx.set('player.speed', speed);
-                ctx.globalState.update('xmlya.player.speed', speed);
+                void ctx.globalState.update('xmlya.player.speed', speed);
             }),
             // too many logs
             // this.mpv.watchProp<number>(
@@ -147,7 +146,7 @@ export class Player extends Runnable {
                     ctx.set('plyaer.readyState', 'unload');
                 } else if (data.reason === 'eof') {
                     // try to play next track.
-                    vscode.commands.executeCommand('xmlya.player.goNext');
+                    void vscode.commands.executeCommand('xmlya.player.goNext');
                 }
             }),
         ];
@@ -195,7 +194,7 @@ export class Player extends Runnable {
 
         await this.mpv.play(this.playingTrack.src);
         // do not need await.
-        this.resume();
+        void this.resume();
     }
 
     private traceContext?: { trackId: number; start: () => void; stop: () => void };
@@ -276,7 +275,7 @@ export class Player extends Runnable {
                           alwaysShow: true,
                           onClick: () => {
                               quickPick.hide();
-                              this.toggleMute(false);
+                              void this.toggleMute(false);
                           },
                       })
                     : new QuickPickTreeLeaf('$(mute)', {
@@ -284,7 +283,7 @@ export class Player extends Runnable {
                           alwaysShow: true,
                           onClick: () => {
                               quickPick.hide();
-                              this.toggleMute(true);
+                              void this.toggleMute(true);
                           },
                       }),
             ].concat(
@@ -297,8 +296,8 @@ export class Player extends Runnable {
                                   description: `${(10 - i) * 10}`,
                                   onClick: () => {
                                       quickPick.hide();
-                                      this.mpv.toggleMute(false);
-                                      this.mpv.setVolume((10 - i) * 10);
+                                      void this.mpv.toggleMute(false);
+                                      void this.mpv.setVolume((10 - i) * 10);
                                   },
                               })
                       )
@@ -306,8 +305,8 @@ export class Player extends Runnable {
                           description: `${value}`,
                           onClick: () => {
                               quickPick.hide();
-                              this.mpv.toggleMute(false);
-                              this.mpv.setVolume(value);
+                              void this.mpv.toggleMute(false);
+                              void this.mpv.setVolume(value);
                           },
                       })
             );
@@ -335,13 +334,13 @@ export class Player extends Runnable {
             new QuickPickTreeLeaf('$(account)', {
                 description: album.anchorInfo.anchorName,
                 onClick: () => {
-                    vscode.commands.executeCommand('xmlya.common.showUser', this.quickPick, trackInfo.anchorId);
+                    void vscode.commands.executeCommand('xmlya.common.showUser', this.quickPick, trackInfo.anchorId);
                 },
             }),
             new QuickPickTreeLeaf('$(repo)', {
                 description: trackInfo.albumName,
                 onClick: () => {
-                    vscode.commands.executeCommand('xmlya.common.showAlbumTracks', this.quickPick, {
+                    void vscode.commands.executeCommand('xmlya.common.showAlbumTracks', this.quickPick, {
                         title: trackInfo.albumName,
                         id: trackInfo.albumId,
                         subTitle: album.mainInfo.shortIntro,
@@ -352,13 +351,13 @@ export class Player extends Runnable {
                 description: 'Download audio source...',
                 onClick: () => {
                     this.quickPick.hide();
-                    this.showTrackUrl();
+                    void this.showTrackUrl();
                 },
             }),
             new QuickPickTreeLeaf('$(inbox)', {
                 description: 'View comments...',
                 onClick: () => {
-                    this.viewComments(this.playingTrackInfo);
+                    void this.viewComments(this.playingTrackInfo);
                 },
             }),
         ];
@@ -374,7 +373,7 @@ export class Player extends Runnable {
                     description: formatDuration(item.duration),
                     active: true,
                     onClick: () => {
-                        vscode.commands.executeCommand('xmlya.player.showTrackInfo');
+                        void vscode.commands.executeCommand('xmlya.player.showTrackInfo');
                         quickPick.hide();
                     },
                 });
@@ -383,7 +382,7 @@ export class Player extends Runnable {
                 description: formatDuration(item.duration),
                 onClick: () => {
                     quickPick.hide();
-                    this.playTrack(item.trackId, item.albumId);
+                    void this.playTrack(item.trackId, item.albumId);
                 },
             });
         });
@@ -406,7 +405,7 @@ export class Player extends Runnable {
             if (uri?.fsPath) {
                 try {
                     //TODO: report download progress.
-                    vscode.window.withProgress(
+                    void vscode.window.withProgress(
                         {
                             title: 'Downloading...',
                             location: vscode.ProgressLocation.Notification,
@@ -421,7 +420,7 @@ export class Player extends Runnable {
                 }
             }
         } else if (choice === 'Open in Browser') {
-            vscode.env.openExternal(vscode.Uri.parse(src));
+            void vscode.env.openExternal(vscode.Uri.parse(src));
         }
     }
 
@@ -500,7 +499,7 @@ export class Player extends Runnable {
         if (track) {
             await this.playTrack(track.trackId, track.albumId);
         } else {
-            vscode.window.showWarningMessage('Failed to get next track');
+            void vscode.window.showWarningMessage('Failed to get next track');
         }
     }
 
@@ -519,7 +518,7 @@ export class Player extends Runnable {
         if (track) {
             await this.playTrack(track.trackId, track.albumId);
         } else {
-            vscode.window.showWarningMessage('Failed to get previous track');
+            void vscode.window.showWarningMessage('Failed to get previous track');
         }
     }
 
@@ -545,9 +544,9 @@ export class Player extends Runnable {
                         const pos = Math.floor(await this.mpv.getPercentPosition());
                         this.terminal.appendLine(`Now playing: ${this.playingTrackInfo?.trackName}`);
                         this.terminal.append(
-                            `${pos}% [${Array.from({ length: 50 }, (_, index) => (index * 2 > pos ? ' ' : '=')).join(
+                            `${pos}% ${Array.from({ length: 50 }, (_, index) => (index * 2 > pos ? '░' : '█')).join(
                                 ''
-                            )}]`
+                            )}`
                         );
                         writtenLines += 2;
                     }

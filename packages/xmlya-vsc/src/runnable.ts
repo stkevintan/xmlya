@@ -74,7 +74,7 @@ export abstract class Runnable {
     private lock(title: string) {
         if (this.locked) return;
         this.locked = true;
-        vscode.window.withProgress(
+        void vscode.window.withProgress(
             {
                 title,
                 location: vscode.ProgressLocation.Notification,

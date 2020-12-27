@@ -78,7 +78,7 @@ export class Connection extends EventEmitter {
         });
 
         return new Disposable(() => {
-            this.rawSend({
+            void this.rawSend({
                 command: ['unobserve_property', id],
             });
         });

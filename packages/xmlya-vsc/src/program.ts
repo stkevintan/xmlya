@@ -1,6 +1,6 @@
 import { Client, XmlyaSDK } from '@xmlya/sdk';
 import * as vscode from 'vscode';
-import { ConfigKeys, Configuration } from './configuration';
+import { Configuration } from './configuration';
 import { Player } from './containers/player';
 import { App } from './containers/app';
 import { ContextService } from './context';
@@ -22,8 +22,8 @@ export class Program {
     }
 
     run() {
-        this.common.runInContext(this.context);
-        this.app.runInContext(this.context);
-        this.player.runInContext(this.context);
+        void this.common.runInContext(this.context);
+        void this.app.runInContext(this.context);
+        void this.player.runInContext(this.context);
     }
 }

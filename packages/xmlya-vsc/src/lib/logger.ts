@@ -25,25 +25,25 @@ export class Logger {
 
     static debug = (message: string): void => {
         if (Logger.Level <= LogLevel.debug) {
-            vscode.window.showInformationMessage(message);
+            void vscode.window.showInformationMessage(message);
         }
     };
 
     static info = (message: string): void => {
         if (Logger.Level <= LogLevel.info) {
-            vscode.window.showInformationMessage(message);
+            void vscode.window.showInformationMessage(message);
         }
     };
 
     static warn = (message: string): void => {
         if (Logger.Level <= LogLevel.warn) {
-            vscode.window.showWarningMessage(message);
+            void vscode.window.showWarningMessage(message);
         }
     };
 
     static error = (message: string): void => {
         if (Logger.Level <= LogLevel.error) {
-            vscode.window.showErrorMessage(message);
+            void vscode.window.showErrorMessage(message);
         }
     };
 
