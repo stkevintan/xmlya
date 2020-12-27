@@ -41,6 +41,12 @@
         "when": "player.hasNext && player.readyState != 'unload'"
     },
     {
+        "key": "time-remaining",
+        "tooltip": "time timeRemaining",
+        "text": "{player.timeRemainingFormatted}",
+        "when": "player.readyState == 'playing' ||  player.readyState == 'pasued' || player.readyState == 'seeking'"
+    },
+    {
         "key": "unmute",
         "tooltip": "Unmute",
         "text": "$(mute)",

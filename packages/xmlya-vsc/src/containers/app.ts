@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { IAlbum, IPaginator, ISortablePaginator } from '@xmlya/sdk';
+import { IPaginator } from '@xmlya/sdk';
 import { QuickPick, QuickPickTreeLeaf, QuickPickTreeParent } from '../components/quick-pick';
 import { FavoritesIcon, PlayHistoryIcon, PurchasedIcon, SubscriptionsIcon } from '../lib';
 import { command, Runnable } from '../runnable';

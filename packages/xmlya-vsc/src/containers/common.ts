@@ -6,7 +6,6 @@ import { commands } from 'vscode';
 interface IAlbumProp {
     title: string;
     id: number;
-    subTitle: string;
 }
 export class Common extends Runnable {
     initialize() {
@@ -16,7 +15,7 @@ export class Common extends Runnable {
     @command('common.showAlbumTracks')
     async showAlbumTracks(quickPick: QuickPick, album: IAlbumProp, params?: ISortablePaginator, bySelf = false) {
         if (quickPick === undefined || album === undefined) return;
-        const title = `${album.title} (${album.subTitle})`;
+        const title = `${album.title}`;
         quickPick.loading(title);
         const { tracks, pageNum, pageSize, totalCount, sort } = await this.sdk.getTracksOfAlbum({
             albumId: album.id,
@@ -48,7 +47,7 @@ export class Common extends Runnable {
     async showUser(quickPick: QuickPick, uid: number) {
         if (quickPick === undefined || uid === undefined) return;
         quickPick.loading();
-        const [user, pub] = await Promise.all([this.sdk.getUserInfo({ uid }), this.sdk.getUserPublish({ uid })]);
+        const [user, pub] = await Promise.all([this.sdk.getUserInfo({ uid }), this.sdk.getUserPub({ uid })]);
         quickPick.render(user.nickName, [
             new QuickPickTreeParent('Profile', {
                 children: [

@@ -2,11 +2,19 @@
 import loader from '@assemblyscript/loader';
 import got from 'got';
 import { URLSearchParams } from 'url';
-import { IFileParams, INonFreeTrackAudio } from '../types';
+import { GetNonFreeTrackAudioResult } from '../types';
 import { lazy } from './utilities';
 
+export interface IFileParams {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    buy_key: string;
+    sign: string;
+    token: string;
+    timestamp: string;
+}
+
 const wasm$ = lazy(async () => {
-    const buffer  = got('https://github.com/stkevintan/xmlya/releases/download/1.0.0/native.wasm', {
+    const buffer = got('https://github.com/stkevintan/xmlya/releases/download/1.0.0/native.wasm', {
         responseType: 'buffer',
         resolveBodyOnly: true,
     });
@@ -37,7 +45,7 @@ const wasm$ = lazy(async () => {
     ] as const;
 });
 
-export async function decodeNonFreeAudioSrc(audio: INonFreeTrackAudio): Promise<string> {
+export async function decodeNonFreeAudioSrc(audio: GetNonFreeTrackAudioResult): Promise<string> {
     const { fileId, ep, duration, domain, apiVersion } = audio;
     const host = domain;
     const fileName = await getFileName(fileId);

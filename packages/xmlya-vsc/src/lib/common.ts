@@ -59,18 +59,17 @@ export function ellipsis(text: string, len: number) {
 export function formatDuration(sec?: number): string {
     if (sec === undefined) return NA;
     const segArr: number[] = [];
-    for (let i = 0; i < 2; i++) {
+    // s, m, h
+    for (let i = 0; i < 3; i++) {
         segArr.push(sec % 60);
         sec = Math.floor(sec / 60);
     }
 
-    const times: string[] = [];
-    for (let i = 1; i >= 0; i--) {
-        if (segArr[i] === 0) continue;
-        // left pad
-        times.push(`${segArr[i] + 100}`.substr(1));
-    }
-    return times.join(':');
+    const s = `${100 + segArr[0]}`.substr(1);
+    const m = `${100 + segArr[1]}`.substr(1);
+    const h = segArr[2];
+
+    return h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
 }
 
 export function openUrl(url: string): void {
