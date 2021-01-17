@@ -15,4 +15,6 @@ export type { GetCommentsOfTracksResult } from './getCommentsOfTrack';
 export type { GetTrackAudioResult } from './getTrackAudio';
 export type { GetNonFreeTrackAudioResult } from './getNonFreeTrackAudio';
 export type { GetContextTracksResult } from './getContextTracks';
+export type { GetRecommendResult } from './getRecomends';
+
 export * from './utils';

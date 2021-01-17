@@ -18,12 +18,36 @@
     ],
     "contributes": {
         "viewsContainers": {
-            "activitybar": [{
-                "icon": "static/logo_mask.svg",
-                "id": "xmlya-container",
-                "title": "Ximalaya FM"
-            }]
-		},
+            "activitybar": [
+                {
+                    "icon": "static/logo_hollow.svg",
+                    "id": "xmlya-container",
+                    "title": "Ximalaya FM"
+                }
+            ]
+        },
+        "views": {
+            "xmlya-container": [
+                {
+                    "id": "xmlya-playing",
+                    "name": "Playing",
+                    "contextualTitle": "Playing",
+                    "type": "webview"
+                },
+                {
+                    "id": "xmlya-user",
+                    "contextualTitle": "User",
+                    "name": "User",
+                    "type": "tree"
+                },
+                {
+                    "id": "xmlya-discover",
+                    "contextualTitle": "Discover",
+                    "name": "Discover",
+                    "type": "tree"
+                }
+            ]
+        },
         "configuration": [
             {
                 "title": "Ximalaya",

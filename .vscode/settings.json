@@ -5,5 +5,6 @@
     "unitTestHelper.runArgs":["${filePath}", "-t ${testName}"],
     "files.associations": {
         "playctrls.json": "jsonc"
-    }
+    },
+    "powershell.codeFormatting.addWhitespaceAroundPipe": true
 }

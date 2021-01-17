@@ -1,37 +1,23 @@
-import {
-    GetCurrentUserResult,
-    GetFavoritesResult,
-    GetPlayHistoryResult,
-    GetPurchasedAlbumsResult,
-    GetSubscriptionsResult,
-    GetTrackPageInfoResult,
-    GetAlbumWithTracksResult,
-    IPaginator,
-    GetUserPubResult,
-    GetUserInfoResult,
-    ISortablePaginator,
-    GetTracksOfAlbumResult,
-    GetCommentsOfTracksResult,
-    GetTrackAudioResult,
-    GetNonFreeTrackAudioResult,
-    SortOrder,
-    GetContextTracksResult,
-} from '../types';
+import * as T from '../types';
 import { IClient } from './client';
 import { decodeNonFreeAudioSrc } from '../lib/decoder';
 
 export class XmlyaSDK {
     constructor(private client: IClient) {}
 
+    getRecommend = () => {
+        return this.client.get<T.GetRecommendResult>('revision/explore/v2/getRecommend');
+    };
+
     // my
-    getCurrentUser = () => this.client.get<GetCurrentUserResult>('revision/main/getCurrentUser');
+    getCurrentUser = () => this.client.get<T.GetCurrentUserResult>('revision/main/getCurrentUser');
 
-    getPlayHistory = (params?: IPaginator & { includeChannel?: boolean; includeRadio?: boolean }) =>
-        this.client.get<GetPlayHistoryResult>('revision/track/history/listen', params);
+    getPlayHistory = (params?: T.IPaginator & { includeChannel?: boolean; includeRadio?: boolean }) =>
+        this.client.get<T.GetPlayHistoryResult>('revision/track/history/listen', params);
 
-    getSubscriptions = (params?: IPaginator & { subType?: number; category?: string }) => {
+    getSubscriptions = (params?: T.IPaginator & { subType?: number; category?: string }) => {
         const { pageNum: num, pageSize: size, ...rest } = params ?? {};
-        return this.client.get<GetSubscriptionsResult>('revision/album/v1/sub/comprehensive', {
+        return this.client.get<T.GetSubscriptionsResult>('revision/album/v1/sub/comprehensive', {
             subType: 2,
             category: 'all',
             num,
@@ -40,14 +26,14 @@ export class XmlyaSDK {
         });
     };
 
-    getFavorites = (params?: IPaginator) => this.client.get<GetFavoritesResult>('revision/my/getLikeTracks', params);
+    getFavorites = (params?: T.IPaginator) => this.client.get<T.GetFavoritesResult>('revision/my/getLikeTracks', params);
 
-    getPurchasedAlbums = (params?: IPaginator) =>
-        this.client.get<GetPurchasedAlbumsResult>('revision/my/getHasBroughtAlbums', params);
+    getPurchasedAlbums = (params?: T.IPaginator) =>
+        this.client.get<T.GetPurchasedAlbumsResult>('revision/my/getHasBroughtAlbums', params);
 
     // albums
     getAlbumWithTracks = async (params: { albumId: number }) => {
-        const ret = await this.client.get<GetAlbumWithTracksResult>('revision/album', params);
+        const ret = await this.client.get<T.GetAlbumWithTracksResult>('revision/album', params);
         // rename trackTotalCount to totalCount
         ret.tracksInfo.totalCount = ret.tracksInfo.trackTotalCount;
         return ret;
@@ -55,28 +41,28 @@ export class XmlyaSDK {
 
     // user public info
     getUserPub = async (params: { uid: number }) => {
-        const ret = await this.client.get<GetUserPubResult>('revision/user', params);
+        const ret = await this.client.get<T.GetUserPubResult>('revision/user', params);
         return ret;
     };
 
     getUserInfo = async (params: { uid: number }) => {
-        return await this.client.get<GetUserInfoResult>('revision/user/basic', params);
+        return await this.client.get<T.GetUserInfoResult>('revision/user/basic', params);
     };
 
-    getTracksOfAlbum = async (params: ISortablePaginator & { albumId: number }) => {
-        const ret = await this.client.get<GetTracksOfAlbumResult>('revision/album/v1/getTracksList', params);
+    getTracksOfAlbum = async (params: T.ISortablePaginator & { albumId: number }) => {
+        const ret = await this.client.get<T.GetTracksOfAlbumResult>('revision/album/v1/getTracksList', params);
         ret.totalCount = ret.trackTotalCount;
         return ret;
     };
 
     getTrackPageInfo = async (params: { trackId: number }) => {
-        return await this.client.get<GetTrackPageInfoResult>('revision/track/trackPageInfo', params);
+        return await this.client.get<T.GetTrackPageInfoResult>('revision/track/trackPageInfo', params);
     };
 
     // track - youshengshu
-    getCommentsOfTrack = async (params: IPaginator & { trackId: number }) => {
+    getCommentsOfTrack = async (params: T.IPaginator & { trackId: number }) => {
         const { pageNum: page = 1, pageSize = 20, ...rest } = params;
-        const ret = await this.client.get<GetCommentsOfTracksResult>('revision/comment/queryComments', {
+        const ret = await this.client.get<T.GetCommentsOfTracksResult>('revision/comment/queryComments', {
             page,
             pageSize,
             ...rest,
@@ -90,10 +76,10 @@ export class XmlyaSDK {
 
     // src will be null when audio is nonfree
     getTrackAudio = (params: { trackId: number }) =>
-        this.client.get<GetTrackAudioResult>('revision/play/v1/audio', { id: params.trackId, ptype: 1 });
+        this.client.get<T.GetTrackAudioResult>('revision/play/v1/audio', { id: params.trackId, ptype: 1 });
 
     getNonFreeTrackAudio = (params: { trackId: number }) => {
-        return this.client.getRaw<void, GetNonFreeTrackAudioResult>(
+        return this.client.getRaw<void, T.GetNonFreeTrackAudioResult>(
             `mobile/track/pay/${params.trackId}/ts-${Date.now()}`,
             {
                 trackQualityLevel: 0,
@@ -117,13 +103,13 @@ export class XmlyaSDK {
 
     getContextTracks = (
         params:
-            | { albumId: number; index: number; sort?: SortOrder; size?: number }
-            | { trackId: number; sort?: SortOrder; size?: number }
+            | { albumId: number; index: number; sort?: T.SortOrder; size?: number }
+            | { trackId: number; sort?: T.SortOrder; size?: number }
     ) => {
-        const sort = params.sort ?? SortOrder.asc;
+        const sort = params.sort ?? T.SortOrder.asc;
         const size = params.size ?? 30;
         if ('albumId' in params) {
-            return this.client.get<GetContextTracksResult>('revision/play/v1/show', {
+            return this.client.get<T.GetContextTracksResult>('revision/play/v1/show', {
                 id: params.albumId,
                 num: Math.ceil(params.index / size),
                 sort,
@@ -131,7 +117,7 @@ export class XmlyaSDK {
                 ptype: 0,
             });
         }
-        return this.client.get<GetContextTracksResult>('revision/play/v1/show', {
+        return this.client.get<T.GetContextTracksResult>('revision/play/v1/show', {
             id: params.trackId,
             sort,
             size,
