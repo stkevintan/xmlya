@@ -120,26 +120,17 @@ export class Player extends Runnable {
                 ctx.set('player.volume', volume);
                 void ctx.globalState.update('xmlya.player.volume', volume);
             }),
-            this.mpv.watch<number>('time-remaining', (countdown) => {
-                countdown = Math.ceil(countdown);
-                const prevRemaining = ctx.get<number>('player.timeRemaining');
-                if (prevRemaining === countdown) return;
-                ctx.set('player.timeRemaining', countdown);
-                ctx.set('player.timeRemainingFormatted', formatDuration(countdown));
-            }),
+            // this.mpv.watch<number>('time-remaining', (countdown) => {
+            //     countdown = Math.ceil(countdown);
+            //     const prevRemaining = ctx.get<number>('player.timeRemaining');
+            //     if (prevRemaining === countdown) return;
+            //     ctx.set('player.timeRemaining', countdown);
+            //     ctx.set('player.timeRemainingFormatted', formatDuration(countdown));
+            // }),
             this.mpv.watch<number>('speed', (speed) => {
                 ctx.set('player.speed', speed);
                 void ctx.globalState.update('xmlya.player.speed', speed);
             }),
-            // too many logs
-            // this.mpv.watchProp<number>(
-            //     'percent-pos',
-            //     throttle(1000, (percent: number) => {
-            //         percent = Math.floor(percent);
-            //         const ret = Number.isNaN(percent) ? undefined : percent;
-            //         ctx.set('player.percentPos', ret);
-            //     })
-            // ),
             this.mpv.on('start-file', () => {
                 ctx.set('player.readyState', 'loading');
             }),

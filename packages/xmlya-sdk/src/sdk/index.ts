@@ -9,6 +9,9 @@ export class XmlyaSDK {
         return this.client.get<T.GetRecommendResult>('revision/explore/v2/getRecommend');
     };
 
+    getCategories = () => {
+        return this.client.get<T.GetCategoriesResult>('revision/category/allCategoryInfo');
+    };
     // my
     getCurrentUser = () => this.client.get<T.GetCurrentUserResult>('revision/main/getCurrentUser');
 

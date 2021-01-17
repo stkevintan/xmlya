@@ -45,6 +45,12 @@
                     "contextualTitle": "Discover",
                     "name": "Discover",
                     "type": "tree"
+                },
+                {
+                    "id":"xmlya-category",
+                    "contextualTitle": "Category",
+                    "name": "Category",
+                    "type": "tree"
                 }
             ]
         },

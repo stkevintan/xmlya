@@ -1,5 +1,6 @@
 import { XmlyaSDK } from '@xmlya/sdk';
 import { CardsEntity } from '@xmlya/sdk/dist/types/getRecomends';
+import { TreeNode } from 'src/components/tree';
 import {
     TreeDataProvider,
     TreeItem,
@@ -10,82 +11,49 @@ import {
     ThemeIcon,
 } from 'vscode';
 
-class DiscoverTreeNode extends TreeItem {
+class DiscoverEntryTreeNode extends TreeNode {
     constructor(private entry: CardsEntity) {
-        super(entry.title, TreeItemCollapsibleState.None);
+        super(entry.title, TreeItemCollapsibleState.Collapsed);
     }
 
-    description = this.entry.hotWord.join();
-    iconPath = new ThemeIcon('repo');
+    iconPath = new ThemeIcon('folder');
 
-    command = {
-        command: 'xmlya.sidebar.recommendations',
-        title: this.label!,
-        arguments: [this.entry.title, this.entry.albumList],
-    };
-
-    // getChildren(): ProviderResult<[]> {
-    //     return this.entry.albumList.map()
-    // }
+    getChildren(): ProviderResult<TreeNode[]> {
+        return [
+            new TreeNode('推荐')
+                .setIcon(new ThemeIcon('thumbsup'))
+                .setCommand('xmlya.sidebar.recommendations', `${this.entry.title} - 推荐`, this.entry.albumList),
+            new TreeNode(`新品榜`)
+                .setIcon(new ThemeIcon('flame'))
+                .setCommand('xmlya.sidebar.soar', `${this.entry.title} - 新品榜`, this.entry.soar),
+            ...this.entry.hotWord.map((word) => {
+                const node = new TreeNode(word);
+                node.iconPath = new ThemeIcon('tag');
+                return node;
+            }),
+        ];
+    }
 }
-
-// class AudiobooksTreeNode extends DiscoverTreeNode {
-//     constructor() {
-//         super('有声书');
-//     }
-// }
-
-// class MusicTreeNode extends DiscoverTreeNode {
-//     constructor() {
-//         super('音乐');
-//     }
-// }
-
-// class EducationTreeNode extends DiscoverTreeNode {
-//     constructor() {
-//         super('教育');
-//     }
-// }
-
-// class KidsTreeNode extends DiscoverTreeNode {
-//     constructor() {
-//         super('儿童');
-//     }
-// }
-
-// class KnowledgeTreeNode extends DiscoverTreeNode {
-//     constructor() {
-//         super('知识');
-//     }
-// }
-
-export class DiscoverTreeDataProvider implements TreeDataProvider<DiscoverTreeNode> {
+export class DiscoverTreeDataProvider implements TreeDataProvider<TreeNode> {
     constructor(private sdk: XmlyaSDK) {}
-    private _onDidChangeTreeData: EventEmitter<DiscoverTreeNode | undefined | void> = new EventEmitter<
-        DiscoverTreeNode | undefined | void
+    private _onDidChangeTreeData: EventEmitter<TreeNode | undefined | void> = new EventEmitter<
+        TreeNode | undefined | void
     >();
-    readonly onDidChangeTreeData: Event<DiscoverTreeNode | undefined | void> = this._onDidChangeTreeData.event;
+    readonly onDidChangeTreeData: Event<TreeNode | undefined | void> = this._onDidChangeTreeData.event;
 
     refresh() {
         this._onDidChangeTreeData.fire();
     }
 
-    getTreeItem(element: DiscoverTreeNode): TreeItem | Thenable<TreeItem> {
+    getTreeItem(element: TreeNode): TreeItem | Thenable<TreeItem> {
         return element;
     }
 
-    async getChildren(element?: DiscoverTreeNode): Promise<DiscoverTreeNode[] | null | undefined> {
+    async getChildren(element?: TreeNode): Promise<TreeNode[] | null | undefined> {
         if (element) {
-            return null;
+            return element.getChildren();
         }
         const { cards } = await this.sdk.getRecommend();
-        return cards.map((c) => new DiscoverTreeNode(c));
-        // return [
-        //     new AudiobooksTreeNode(),
-        //     new MusicTreeNode(),
-        //     new EducationTreeNode(),
-        //     new KidsTreeNode(),
-        //     new KnowledgeTreeNode(),
-        // ];
+        return cards.map((c) => new DiscoverEntryTreeNode(c));
     }
 }
