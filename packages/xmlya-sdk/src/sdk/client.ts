@@ -37,7 +37,7 @@ export interface IRequestOptions {
     cookie?: string | (() => string | undefined);
 }
 
-const baseURL = 'https://www.ximalaya.com';
+const baseURL = 'https://www.ximalaya.com/';
 const getPrefixUrl = (url: string) => (/^https?:\/\//.test(url) ? undefined : baseURL);
 
 export class Client implements IClient {
@@ -56,7 +56,7 @@ export class Client implements IClient {
             handlers: [
                 async (options, next) => {
                     options.headers.Host = options.url.host;
-                    if (options.prefixUrl === 'https://www.ximalaya.com' && options.url.pathname !== '/revision/time') {
+                    if (options.url.host === 'www.ximalaya.com' && options.url.pathname !== '/revision/time') {
                         options.headers['xm-sign'] = await this.getSign();
                     }
                     return next(options);
@@ -78,11 +78,12 @@ export class Client implements IClient {
     }
 
     private async getSign(): Promise<string> {
-        const url = 'revision/time';
-        const { text } = await this.client(url).json<{ text: string }>();
-        return [md5(`himalaya-${text}`), `(${randomInt()})`, text, `(${randomInt()})`, Date.now()].join('');
+        // const url = 'https://www.ximalaya.com/revision/time';
+        const serverTime = Date.now(); // should
+        const localTime = Date.now();
+        return [md5(`himalaya-${serverTime}`), `(${randomInt()})`, serverTime, `(${randomInt()})`, localTime].join('');
         function randomInt() {
-            return Math.round(Math.random() * 100);
+            return Math.floor(Math.random() * 100);
         }
     }
 

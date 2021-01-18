@@ -78,8 +78,8 @@
         "key": "playlist",
         "tooltip": "playlist",
         "text": "$(note)",
-        "command":"xmlya.player.showPlaylist",
-        "when": "player.readyState == 'paused' || player.readyState == 'playing'"
+        "command":"xmlya.player.showPlaylist"
+        // "when": "player.readyState == 'paused' || player.readyState == 'playing'"
     },
     { "key": "menu", "tooltip": "Ximalaya", "text": "$(broadcast)", "command": "xmlya.user.menu" }
 ]

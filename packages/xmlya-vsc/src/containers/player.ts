@@ -376,9 +376,7 @@ export class Player extends Runnable {
                 },
             });
         });
-        if (items.length) {
-            quickPick.render('Playlist', items);
-        }
+        quickPick.render('Playlist', items);
     }
 
     @command('player.showTrackUrl')

@@ -62,4 +62,27 @@ export class Sidebar extends Runnable {
             )
         );
     }
+
+    @command('sidebar.showAlbumsOfCategory')
+    async renderAlbumsOfCategory(title: string, category: string, subcategory?: string) {
+        this.quickPick.loading(title);
+        const ret = await this.sdk.getAllAlbumsInCategory({ category, subcategory });
+        this.quickPick.render(
+            title,
+            ret.albums.map(
+                (album) =>
+                    new QuickPickTreeLeaf(album.title, {
+                        description: `${album.playCount}`,
+                        detail: `${album.anchorName}`,
+                        onClick: () => {
+                            this.quickPick.hide();
+                            void commands.executeCommand('xmlya.common.showAlbumTracks', this.quickPick, {
+                                id: album.albumId,
+                                title: album.title,
+                            });
+                        },
+                    })
+            )
+        );
+    }
 }

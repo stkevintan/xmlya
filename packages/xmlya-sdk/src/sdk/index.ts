@@ -12,6 +12,25 @@ export class XmlyaSDK {
     getCategories = () => {
         return this.client.get<T.GetCategoriesResult>('revision/category/allCategoryInfo');
     };
+
+    // sort: 0 - sort by comprehensive, 2 - sort by playing count, 1 - sort by date
+    getAllAlbumsInCategory = async (
+        params: T.IPaginator & { sort?: 0 | 1 | 2; category: string; subcategory?: string }
+    ): Promise<T.GetAllAlbumsInCategoryResult & T.IPagination> => {
+        const { pageNum: page, pageSize: perPage, sort = 0, ...rest } = params;
+        const ret = await this.client.get<T.GetAllAlbumsInCategoryResult>('revision/category/queryCategoryPageAlbums', {
+            page,
+            perPage,
+            sort,
+            ...rest,
+        });
+        return {
+            totalCount: ret.total,
+            pageNum: ret.page,
+            ...ret,
+        };
+    };
+
     // my
     getCurrentUser = () => this.client.get<T.GetCurrentUserResult>('revision/main/getCurrentUser');
 
@@ -29,7 +48,8 @@ export class XmlyaSDK {
         });
     };
 
-    getFavorites = (params?: T.IPaginator) => this.client.get<T.GetFavoritesResult>('revision/my/getLikeTracks', params);
+    getFavorites = (params?: T.IPaginator) =>
+        this.client.get<T.GetFavoritesResult>('revision/my/getLikeTracks', params);
 
     getPurchasedAlbums = (params?: T.IPaginator) =>
         this.client.get<T.GetPurchasedAlbumsResult>('revision/my/getHasBroughtAlbums', params);
@@ -63,7 +83,9 @@ export class XmlyaSDK {
     };
 
     // track - youshengshu
-    getCommentsOfTrack = async (params: T.IPaginator & { trackId: number }) => {
+    getCommentsOfTrack = async (
+        params: T.IPaginator & { trackId: number }
+    ): Promise<T.GetCommentsOfTracksResult & T.IPagination> => {
         const { pageNum: page = 1, pageSize = 20, ...rest } = params;
         const ret = await this.client.get<T.GetCommentsOfTracksResult>('revision/comment/queryComments', {
             page,
