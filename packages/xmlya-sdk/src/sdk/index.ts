@@ -31,6 +31,15 @@ export class XmlyaSDK {
         };
     };
 
+    search = async (params: { core: string; kw: string; live?: boolean }) => {
+        return await this.client.get<T.SearchResult>('revision/search/main', {
+            ...params,
+            spellchecker: true,
+            device: 'iPhone',
+            live: !!params.live,
+        });
+    };
+
     // my
     getCurrentUser = () => this.client.get<T.GetCurrentUserResult>('revision/main/getCurrentUser');
 

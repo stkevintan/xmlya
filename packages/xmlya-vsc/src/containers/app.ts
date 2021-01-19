@@ -12,24 +12,6 @@ export class App extends Runnable {
         return this.quickPick;
     }
 
-    @command('user.menu')
-    async renderHome() {
-        this.quickPick.render(`Menu`, [
-            new QuickPickTreeLeaf(`$(${PlayHistoryIcon}) Play History`, {
-                onClick: () => this.renderPlayHistory(),
-            }),
-            new QuickPickTreeLeaf(`$(${SubscriptionsIcon}) Subscriptions`, {
-                onClick: () => this.renderSubscriptions(),
-            }),
-            new QuickPickTreeLeaf(`$(${FavoritesIcon}) Favorites`, {
-                onClick: () => this.renderFavorites(),
-            }),
-            new QuickPickTreeLeaf(`$(${PurchasedIcon}) Purchased Albums`, {
-                onClick: () => this.renderPurchasedAlbums(),
-            }),
-        ]);
-    }
-
     @command('user.playHistory')
     async renderPlayHistory() {
         const title = 'Playing History';

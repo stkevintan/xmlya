@@ -105,11 +105,6 @@
         ],
         "commands": [
             {
-                "title": "User Menu",
-                "command": "xmlya.user.menu",
-                "category": "Ximalaya"
-            },
-            {
                 "title": "Playing History",
                 "command": "xmlya.user.playHistory",
                 "category": "Ximalaya"

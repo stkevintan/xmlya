@@ -18,5 +18,6 @@ export type { GetContextTracksResult } from './getContextTracks';
 export type { GetRecommendResult } from './getRecomends';
 export type { GetCategoriesResult } from './getCategories';
 export type { GetAllAlbumsInCategoryResult } from './getAllAlbumsInCategory';
+export type { SearchResult } from './search';
 
 export * from './utils';
