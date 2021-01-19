@@ -47,7 +47,7 @@
                     "type": "tree"
                 },
                 {
-                    "id":"xmlya-category",
+                    "id": "xmlya-category",
                     "contextualTitle": "Category",
                     "name": "Category",
                     "type": "tree"
@@ -203,9 +203,38 @@
                 "title": "View comments",
                 "command": "xmlya.player.viewComments",
                 "category": "Ximalaya"
+            },
+            {
+                "title": "Refresh",
+                "command": "xmlya.category.refresh",
+                "icon": {
+                    "light": "static/light/refresh.svg",
+                    "dark": "static/dark/refresh.svg"
+                }
+            },
+            {
+                "title": "Refresh",
+                "command": "xmlya.discover.refresh",
+                "icon": {
+                    "light": "static/light/refresh.svg",
+                    "dark": "static/dark/refresh.svg"
+                }
             }
         ],
-        "menus": {}
+        "menus": {
+            "view/title": [
+                {
+                    "command": "xmlya.category.refresh",
+                    "when": "view == xmlya-category",
+                    "group": "navigation"
+                },
+                {
+                    "command": "xmlya.discover.refresh",
+                    "when": "view == xmlya-discover",
+                    "group": "navigation"
+                }
+            ]
+        }
     },
     "scripts": {
         "start": "webpack -w --mode development",

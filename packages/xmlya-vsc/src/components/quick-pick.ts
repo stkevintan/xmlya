@@ -21,7 +21,7 @@ export interface IQuickPickItem extends vscode.QuickPickItem {
 type TreeItemTag = 'leaf' | 'parent' | 'action';
 
 export class QuickPickTreeLeaf {
-    constructor(public readonly label: string, private properties: Omit<IQuickPickItem, 'label' | 'tag'> = {}) {}
+    constructor(readonly label: string, readonly properties: Omit<IQuickPickItem, 'label' | 'tag'> = {}) {}
     readonly tag: TreeItemTag = 'leaf';
     toQuickPickItem = (indent = 0): IQuickPickItem => ({
         ...this.properties,
@@ -41,8 +41,8 @@ export class QuickPickTreeParent {
     }
 
     constructor(
-        public readonly label: string,
-        private properties: Omit<IQuickPickItem, 'label' | 'tag'> & {
+        readonly label: string,
+        readonly properties: Omit<IQuickPickItem, 'label' | 'tag'> & {
             children?: QuickPickTreeItem[];
         } = {}
     ) {}
@@ -60,8 +60,7 @@ export class QuickPickTreeParent {
         label: leftPad(`$(${this.toggleIcon}) ${this.label}`, indent)!,
         detail: leftPad(this.properties.detail, indent),
         onClick: (picker) => {
-            this.expanded = !this.expanded;
-            picker.repaint();
+            picker.toggleFolder(this);
         },
     });
 }
@@ -143,6 +142,15 @@ export class QuickPick extends vscode.Disposable {
     hide(): void {
         this.quickPick.hide();
     }
+
+    toggleFolder = (folder: QuickPickTreeParent) => {
+        folder.expanded = !folder.expanded;
+        const items = this.curTreeItems.map((item) => {
+            item.properties.active = folder === item;
+            return item;
+        });
+        this.repaint(items);
+    };
 
     repaint = (items?: QuickPickTreeItem[]) => {
         if (items) {

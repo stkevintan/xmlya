@@ -1,3 +1,4 @@
+import { IPaginator } from '@xmlya/sdk';
 import { AlbumListEntity, SoarEntity } from '@xmlya/sdk/dist/types/getRecomends';
 import { QuickPick, QuickPickTreeLeaf } from 'src/components/quick-pick';
 import { ContextService } from 'src/context';
@@ -11,14 +12,25 @@ import { UserTreeDataProvider } from './user';
 
 export class Sidebar extends Runnable {
     private quickPick!: QuickPick;
+    private userTreeDataProvider!: UserTreeDataProvider;
+    private discoverTreeDataProvider!: DiscoverTreeDataProvider;
+    private categoryTreeDataProvider!: CategoryTreeDataProvider;
+    private playingWebviewProvider!: PlayingWebviewProvider;
+
     initialize(context: ContextService): PromiseOrNot<Disposable | undefined> {
         this.quickPick = new QuickPick();
+
+        this.userTreeDataProvider = new UserTreeDataProvider();
+        this.discoverTreeDataProvider = new DiscoverTreeDataProvider(this.sdk);
+        this.categoryTreeDataProvider = new CategoryTreeDataProvider(this.sdk);
+        this.playingWebviewProvider = new PlayingWebviewProvider();
+
         return Disposable.from(
             this.quickPick,
-            window.registerTreeDataProvider('xmlya-user', new UserTreeDataProvider()),
-            window.registerTreeDataProvider('xmlya-discover', new DiscoverTreeDataProvider(this.sdk)),
-            window.registerTreeDataProvider('xmlya-category', new CategoryTreeDataProvider(this.sdk)),
-            window.registerWebviewViewProvider('xmlya-playing', new PlayingWebviewProvider())
+            window.registerTreeDataProvider('xmlya-user', this.userTreeDataProvider),
+            window.registerTreeDataProvider('xmlya-discover', this.discoverTreeDataProvider),
+            window.registerTreeDataProvider('xmlya-category', this.categoryTreeDataProvider),
+            window.registerWebviewViewProvider('xmlya-playing', this.playingWebviewProvider)
         );
     }
 
@@ -32,7 +44,6 @@ export class Sidebar extends Runnable {
                         description: `${album.albumPlayCount}`,
                         detail: `${album.albumUserNickName} ${album.intro}`,
                         onClick: () => {
-                            this.quickPick.hide();
                             void commands.executeCommand('xmlya.common.showAlbumTracks', this.quickPick, {
                                 id: album.albumId,
                                 title: album.albumTitle,
@@ -52,7 +63,6 @@ export class Sidebar extends Runnable {
                         description: `${album.playCount}`,
                         detail: `${album.anchorName} ${album.tagStr}`,
                         onClick: () => {
-                            this.quickPick.hide();
                             void commands.executeCommand('xmlya.common.showAlbumTracks', this.quickPick, {
                                 id: album.id,
                                 title: album.albumTitle,
@@ -63,26 +73,47 @@ export class Sidebar extends Runnable {
         );
     }
 
+    @command('category.refresh')
+    async refrehCategory() {
+        this.categoryTreeDataProvider.refresh();
+    }
+
+    @command('discover.refresh')
+    async refreshDiscover() {
+        this.discoverTreeDataProvider.refresh();
+    }
+
     @command('sidebar.showAlbumsOfCategory')
-    async renderAlbumsOfCategory(title: string, category: string, subcategory?: string) {
+    async renderAlbumsOfCategory(
+        title: string,
+        category: string,
+        subcategory?: string,
+        page?: IPaginator,
+        bySelf = false
+    ) {
         this.quickPick.loading(title);
-        const ret = await this.sdk.getAllAlbumsInCategory({ category, subcategory });
+        const ret = await this.sdk.getAllAlbumsInCategory({ category, subcategory, ...page });
         this.quickPick.render(
             title,
-            ret.albums.map(
-                (album) =>
-                    new QuickPickTreeLeaf(album.title, {
-                        description: `${album.playCount}`,
-                        detail: `${album.anchorName}`,
-                        onClick: () => {
-                            this.quickPick.hide();
-                            void commands.executeCommand('xmlya.common.showAlbumTracks', this.quickPick, {
-                                id: album.albumId,
-                                title: album.title,
-                            });
-                        },
-                    })
-            )
+            {
+                items: ret.albums.map(
+                    (album) =>
+                        new QuickPickTreeLeaf(album.title, {
+                            description: `${album.playCount}`,
+                            detail: `${album.anchorName}`,
+                            onClick: () => {
+                                void commands.executeCommand('xmlya.common.showAlbumTracks', this.quickPick, {
+                                    id: album.albumId,
+                                    title: album.title,
+                                });
+                            },
+                        })
+                ),
+                pagination: ret,
+                onPageChange: (pageNum) =>
+                    this.renderAlbumsOfCategory(title, category, subcategory, { ...page, pageNum }, true),
+            },
+            bySelf ? 'replace' : 'push'
         );
     }
 }
