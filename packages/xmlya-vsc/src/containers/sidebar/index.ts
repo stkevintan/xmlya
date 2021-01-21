@@ -116,4 +116,9 @@ export class Sidebar extends Runnable {
             bySelf ? 'replace' : 'push'
         );
     }
+
+    @command('global.search')
+    async search() {
+        this.quickPick.render('Search');
+    }
 }

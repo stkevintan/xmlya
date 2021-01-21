@@ -202,17 +202,27 @@
             {
                 "title": "Refresh",
                 "command": "xmlya.category.refresh",
-                "icon": {
-                    "light": "static/light/refresh.svg",
-                    "dark": "static/dark/refresh.svg"
-                }
+                "icon": "$(refresh)"
+            },
+            {
+                "title": "Search",
+                "command": "xmlya.global.search",
+                "icon": "$(search)"
             },
             {
                 "title": "Refresh",
                 "command": "xmlya.discover.refresh",
-                "icon": {
-                    "light": "static/light/refresh.svg",
-                    "dark": "static/dark/refresh.svg"
+                "icon": "$(refresh)"
+            }
+        ],
+        "colors": [
+            {
+                "id": "xmlya.playCtrl.color",
+                "description": "color for player controller in status bar",
+                "defaults": {
+                    "dark": "errorForeground",
+                    "light": "errorForeground",
+                    "highContrast": "#010203"
                 }
             }
         ],
@@ -226,6 +236,11 @@
                 {
                     "command": "xmlya.discover.refresh",
                     "when": "view == xmlya-discover",
+                    "group": "navigation"
+                },
+                {
+                    "command": "xmlya.global.search",
+                    "when": "view == xmlya-playing",
                     "group": "navigation"
                 }
             ]
