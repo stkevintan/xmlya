@@ -8,10 +8,6 @@ interface IAlbumProp {
     id: number;
 }
 export class Common extends Runnable {
-    initialize() {
-        return undefined;
-    }
-
     @command('common.showAlbumTracks')
     async showAlbumTracks(quickPick: QuickPick, album: IAlbumProp, params?: ISortablePaginator, bySelf = false) {
         if (quickPick === undefined || album === undefined) return;

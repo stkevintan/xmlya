@@ -1,7 +1,7 @@
-import got, { Got, GotReturn, Options, Response } from 'got';
+import got, { Got, Options, Response } from 'got';
 import assert from 'assert';
 import { md5 } from '../lib/utilities';
-import { Duplex, Stream } from 'stream';
+import { Duplex } from 'stream';
 
 export type ResBody<T = unknown> = {
     msg: string;

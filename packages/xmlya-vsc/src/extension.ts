@@ -1,6 +1,36 @@
+import { Client, XmlyaSDK } from '@xmlya/sdk';
 import * as vscode from 'vscode';
-import { Program } from './program';
+import { Configuration } from './configuration';
+import { App } from './containers/app';
+import { Common } from './containers/common';
+import { Player } from './containers/player';
+import { Sidebar } from './containers/sidebar';
+import { ContextService } from './context';
+import { Logger } from './lib';
+import { createMpv } from './lib/mpv';
 
-export function activate(context: vscode.ExtensionContext) {
-    new Program(context).run();
+export async function activate(_context: vscode.ExtensionContext) {
+    try {
+        const context = new ContextService(_context);
+        // setup channel.
+        const channel = vscode.window.createOutputChannel('xmlya');
+        context.subscriptions.push(channel);
+        Logger.Channel = channel;
+
+        //setup sdk
+        const client = new Client({ cookie: () => Configuration.cookie });
+        const sdk = new XmlyaSDK(client);
+
+        //setup mpv
+        const mpv = await createMpv(context);
+
+        //setup components
+        new Common(sdk, context).run();
+        new App(sdk, context).run();
+        new Player(mpv, sdk, context).run();
+        new Sidebar(sdk, context).run();
+    } catch (err) {
+        // show error
+        void vscode.window.showErrorMessage(err.message);
+    }
 }

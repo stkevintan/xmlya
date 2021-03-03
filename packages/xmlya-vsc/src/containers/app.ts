@@ -1,15 +1,15 @@
 import * as vscode from 'vscode';
-import { IPaginator } from '@xmlya/sdk';
+import { IPaginator, XmlyaSDK } from '@xmlya/sdk';
 import { QuickPick, QuickPickTreeLeaf, QuickPickTreeParent } from '../components/quick-pick';
-import { FavoritesIcon, PlayHistoryIcon, PurchasedIcon, SubscriptionsIcon } from '../lib';
 import { command, Runnable } from '../runnable';
+import { ContextService } from 'src/context';
 
 export class App extends Runnable {
-    private quickPick!: QuickPick;
+    private quickPick: QuickPick;
 
-    initialize() {
-        this.quickPick = new QuickPick();
-        return this.quickPick;
+    constructor(sdk: XmlyaSDK, context: ContextService) {
+        super(sdk, context);
+        this.quickPick = this.register(new QuickPick());
     }
 
     @command('user.playHistory')

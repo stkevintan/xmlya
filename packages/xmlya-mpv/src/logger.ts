@@ -1,35 +1,37 @@
-const LogLevel = ['debug', 'info', 'warn', 'error'] as const;
+const LogLevel = ['debug', 'info', 'warn', 'error', 'silent'] as const;
 export type LogLevel = typeof LogLevel[number];
 
-function formatPrefix(logLevel: LogLevel) {
-    return `[${new Date().toISOString()}] [${logLevel.toUpperCase()}] xmlya-mpv - `;
+export interface ILogger {
+    debug(...messages: any[]): void;
+    info(...messages: any[]): void;
+    warn(...messages: any[]): void;
+    error(...messages: any[]): void;
 }
 
 export class Logger {
     static Level: LogLevel = 'info';
-    static logger?: (...messages: any) => void;
-
-    static debug(...messages: any) {
+    static logger?: ILogger;
+    static debug(...messages: any[]) {
         if (LogLevel.indexOf(this.Level) <= 0) {
-            this.logger?.(formatPrefix('debug'), ...messages);
+            this.logger?.debug(...messages);
         }
     }
 
-    static info(...messages: any) {
+    static info(...messages: any[]) {
         if (LogLevel.indexOf(this.Level) <= 1) {
-            this.logger?.(formatPrefix('info'), ...messages);
+            this.logger?.info(...messages);
         }
     }
 
     static warn(...messages: any) {
         if (LogLevel.indexOf(this.Level) <= 2) {
-            this.logger?.(formatPrefix('warn'), ...messages);
+            this.logger?.warn(...messages);
         }
     }
 
     static error(...messages: any) {
         if (LogLevel.indexOf(this.Level) <= 3) {
-            this.logger?.(formatPrefix('error'), ...messages);
+            this.logger?.error(...messages);
         }
     }
 }

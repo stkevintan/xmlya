@@ -8,56 +8,60 @@ export enum LogLevel {
     slient,
 }
 
-export class Logger {
-    static Level: LogLevel = LogLevel.debug;
+function formatPrefix(componentName: string, logLevel: LogLevel) {
+    return `[${new Date().toISOString()}] [${LogLevel[logLevel].toUpperCase()}] ${componentName} - `;
+}
 
+export class Notification {
     static assert(x: any, message?: string): asserts x {
         if (x === null || x === undefined) {
-            Logger.throw(message);
+            Notification.throw(message);
         }
     }
 
     static assertTrue(x: boolean, message?: string): asserts x is true {
         if (!x) {
-            Logger.throw(message);
+            Notification.throw(message);
         }
     }
 
-    static debug = (message: string): void => {
-        if (Logger.Level <= LogLevel.debug) {
-            void vscode.window.showInformationMessage(message);
-        }
-    };
-
-    static info = (message: string): void => {
-        if (Logger.Level <= LogLevel.info) {
-            void vscode.window.showInformationMessage(message);
-        }
-    };
-
-    static warn = (message: string): void => {
-        if (Logger.Level <= LogLevel.warn) {
-            void vscode.window.showWarningMessage(message);
-        }
-    };
-
-    static error = (message: string): void => {
-        if (Logger.Level <= LogLevel.error) {
-            void vscode.window.showErrorMessage(message);
-        }
-    };
-
-    static throw = (error?: string | Error): never => {
+    static throw(error?: string | Error): never {
         const message = !error
             ? ''
             : typeof error === 'string'
             ? error
             : error.message ?? Object.prototype.toString.call(error);
 
-        if (message) {
-            Logger.error(message);
-        }
-
+        void vscode.window.showErrorMessage(message);
         throw error instanceof Error ? error : new Error(message);
-    };
+    }
+}
+export class Logger {
+    static Level: LogLevel = LogLevel.debug;
+
+    static Channel: vscode.OutputChannel | null;
+
+    constructor(private componentName: string) {}
+
+    private log(logLevel: LogLevel, messages: any[] = []) {
+        if (Logger.Level <= logLevel) {
+            Logger.Channel?.appendLine(formatPrefix(this.componentName, logLevel) + messages.join(' '));
+        }
+    }
+
+    debug(...messages: any[]): void {
+        this.log(LogLevel.debug, messages);
+    }
+
+    info(...messages: any[]): void {
+        this.log(LogLevel.info, messages);
+    }
+
+    warn(...messages: any[]): void {
+        this.log(LogLevel.warn, messages);
+    }
+
+    error(...messages: any[]): void {
+        this.log(LogLevel.error, messages);
+    }
 }

@@ -2,11 +2,11 @@ import path from 'path';
 import { Defer, Disposable } from './common';
 import { OperationError } from './error';
 import { LibMpv } from './libmpv';
-import { Logger, LogLevel } from './logger';
+import { ILogger, Logger, LogLevel } from './logger';
 import { ILibMpvOptions } from './types';
 
 export interface IMpvOptions extends ILibMpvOptions {
-    logger?: (...args: any) => void;
+    logger?: ILogger;
     /**
      * default to info
      */
@@ -15,8 +15,8 @@ export interface IMpvOptions extends ILibMpvOptions {
 
 export class Mpv extends Disposable {
     static async create(options: IMpvOptions = {}): Promise<Mpv> {
-        Logger.logger = options.logger;
         Logger.Level = options.logLevel ?? 'info';
+        Logger.logger = options.logger;
         return new Mpv(await LibMpv.create(options));
     }
 

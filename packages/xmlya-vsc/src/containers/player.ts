@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { command, Runnable } from '../runnable';
-import { GetContextTracksResult, GetTrackAudioResult, GetTrackPageInfoResult, IPaginator } from '@xmlya/sdk';
-import { Logger } from '../lib/logger';
+import { GetContextTracksResult, GetTrackAudioResult, GetTrackPageInfoResult, IPaginator, XmlyaSDK } from '@xmlya/sdk';
+import { Notification } from '../lib/logger';
 import { ConfigKeys, Configuration } from '../configuration';
 import { StatusBar } from '../components/status-bar';
 import { asyncInterval, delay, ellipsis, formatDuration, openUrl } from '../lib';
@@ -32,24 +32,10 @@ export class Player extends Runnable {
 
     private terminal!: Terminal;
 
-    private mpv!: Mpv;
-
-    private ctx!: ContextService;
-
-    async initialize(context: ContextService) {
-        this.mpv = await Mpv.create({
-            mpvBinary: Configuration.mpvBinary,
-            args: Configuration.mpvAguments,
-            volume: context.globalState.get('xmlya.player.volume'),
-            speed: context.globalState.get('xmlya.player.speed'),
-            mute: context.globalState.get('xmlya.player.isMuted'),
-            logLevel: 'debug',
-            logger: console.log,
-        });
+    constructor(private mpv: Mpv, sdk: XmlyaSDK, context: ContextService) {
+        super(sdk, context);
 
         this.terminal = new Terminal();
-        // put context to this.
-        this.ctx = context;
         const syncCtxRefs = this.syncContext(context);
         const syncConfRefs = this.syncConf();
         // construct the status bar.
@@ -57,22 +43,24 @@ export class Player extends Runnable {
         // render in current context
         statusBar.renderWith(context, 'player');
         // start trace
-        const traceRef = this.ctx.onChange((keys) => {
+        const traceRef = this.context.onChange((keys) => {
             if (keys.includes('player.readyState')) {
-                void this.toggleTrace(this.ctx.get('player.readyState') === 'playing');
+                void this.toggleTrace(this.context.get('player.readyState') === 'playing');
             }
         });
 
-        return vscode.Disposable.from(
-            ...syncCtxRefs,
-            ...syncConfRefs,
-            statusBar,
-            this.quickPick,
-            this.terminal,
-            traceRef,
-            {
-                dispose: () => this.traceContext?.start(),
-            }
+        this.register(
+            vscode.Disposable.from(
+                ...syncCtxRefs,
+                ...syncConfRefs,
+                statusBar,
+                this.quickPick,
+                this.terminal,
+                traceRef,
+                {
+                    dispose: () => this.traceContext?.start(),
+                }
+            )
         );
     }
 
@@ -154,33 +142,36 @@ export class Player extends Runnable {
     async playTrack(trackId: number, albumId: number) {
         if (trackId === undefined || albumId === undefined) return;
         this.playingAudio = await this.sdk.getTrackAudio({ trackId });
-        Logger.assert(this.playingAudio, 'No track to play.');
+        Notification.assert(this.playingAudio, 'No track to play.');
         // if playContext is outdated.
         if (this.playContext === undefined || this.playingTrack?.albumId !== albumId) {
             this.playContext = await this.sdk.getContextTracks({ trackId });
         }
         assert(this.playingTrack, 'no track to play');
-        this.ctx.set('player.trackTitle', ellipsis(this.playingTrack.trackName, 20));
+        this.context.set('player.trackTitle', ellipsis(this.playingTrack.trackName, 20));
 
         const index = this.playlist.findIndex((item) => item.trackId === this.playingAudio?.trackId);
         if (index !== -1) {
-            this.ctx.set('player.hasPrev', index > 0 || this.playlist[0].index !== 1);
-            this.ctx.set('player.hasNext', index < this.playlist.length - 1 || this.playContext!.hasMore);
+            this.context.set('player.hasPrev', index > 0 || this.playlist[0].index !== 1);
+            this.context.set('player.hasNext', index < this.playlist.length - 1 || this.playContext!.hasMore);
         } else {
-            this.ctx.set('player.hasPrev', false);
-            this.ctx.set('player.hasnext', false);
+            this.context.set('player.hasPrev', false);
+            this.context.set('player.hasnext', false);
         }
         // set loading state ahead of time.
         try {
-            this.ctx.set('player.readyState', 'loading');
+            this.context.set('player.readyState', 'loading');
             if (!this.playingAudio.src) {
-                Logger.assertTrue(this.playingAudio.canPlay, `Track ${this.playingTrack.trackName} is not playable.`);
+                Notification.assertTrue(
+                    this.playingAudio.canPlay,
+                    `Track ${this.playingTrack.trackName} is not playable.`
+                );
                 this.playingAudio.src = await this.sdk.getNonFreeTrackAudioSrc({ trackId: this.playingAudio.trackId });
             }
 
-            Logger.assert(this.playingAudio.src, 'Get audio source failed');
+            Notification.assert(this.playingAudio.src, 'Get audio source failed');
         } catch (e) {
-            this.ctx.set('player.readyState', 'error');
+            this.context.set('player.readyState', 'error');
             throw e;
         }
 
@@ -261,7 +252,7 @@ export class Player extends Runnable {
         const quickPick = new QuickPick({ disposeOnHide: true });
         const generateVols = (value?: number) =>
             [
-                this.ctx.get('player.isMuted')
+                this.context.get('player.isMuted')
                     ? new QuickPickTreeLeaf('$(unmute)', {
                           description: 'Unmute',
                           alwaysShow: true,
@@ -284,7 +275,7 @@ export class Player extends Runnable {
                           { length: 10 },
                           (_, i) =>
                               new QuickPickTreeLeaf('$(symbol-variable)', {
-                                  active: (10 - i) * 10 === this.ctx.get('player.volume'),
+                                  active: (10 - i) * 10 === this.context.get('player.volume'),
                                   description: `${(10 - i) * 10}`,
                                   onClick: () => {
                                       quickPick.hide();
@@ -315,7 +306,7 @@ export class Player extends Runnable {
 
     @command('player.showTrackInfo')
     async showTrackInfo() {
-        Logger.assert(this.playingTrack, 'No track found.');
+        Notification.assert(this.playingTrack, 'No track found.');
         this.quickPick.loading(this.playingTrack.trackName);
         const info = await this.sdk.getTrackPageInfo({ trackId: this.playingTrack.trackId });
         const items = [
@@ -383,7 +374,7 @@ export class Player extends Runnable {
     async showTrackUrl({ src, name }: { src?: string; name?: string } = {}) {
         src = src ?? this.playingAudio?.src ?? undefined;
         name = name ?? this.playingTrack?.trackName ?? 'audio';
-        Logger.assert(src, 'Track source is required');
+        Notification.assert(src, 'Track source is required');
         const choice = await vscode.window.showInformationMessage(src, 'Download', 'Open in Browser');
         if (choice === 'Download') {
             const uri = await vscode.window.showSaveDialog({
@@ -404,7 +395,7 @@ export class Player extends Runnable {
                         }
                     );
                 } catch (e) {
-                    Logger.throw(e);
+                    Notification.throw(e);
                 }
             }
         } else if (choice === 'Open in Browser') {
@@ -461,7 +452,7 @@ export class Player extends Runnable {
             choices.map(
                 (speed) =>
                     new QuickPickTreeLeaf(`$(symbol-event)`, {
-                        active: this.ctx.get('player.speed') === speed,
+                        active: this.context.get('player.speed') === speed,
                         description: `${speed}x`,
                         onClick: async (picker) => {
                             picker.hide();
@@ -475,7 +466,7 @@ export class Player extends Runnable {
     @command('player.goNext', 'Loading next track...')
     async goNext() {
         const current = this.playingTrack;
-        Logger.assert(current, 'No track');
+        Notification.assert(current, 'No track');
         const index = current.index + 1;
         let track = this.playlist.find((item) => item.index === index);
         if (!track && this.playContext?.hasMore) {
@@ -495,7 +486,7 @@ export class Player extends Runnable {
     @command('player.goPrev', 'Loading previous track...')
     async goPrev() {
         const current = this.playingTrack;
-        Logger.assert(current, 'No track');
+        Notification.assert(current, 'No track');
         const index = current.index - 1;
         let track = this.playlist.find((item) => item.index === index);
         if (!track && current && current.index > 1) {
@@ -530,7 +521,7 @@ export class Player extends Runnable {
                         this.terminal.eraseLine(writtenLines);
                         writtenLines = 0;
                     }
-                    if (['playing', 'paused', 'seeking'].includes(this.ctx.get<string>('player.readyState')!)) {
+                    if (['playing', 'paused', 'seeking'].includes(this.context.get<string>('player.readyState')!)) {
                         const pos = Math.floor(await this.mpv.getPercentPosition());
                         this.terminal.appendLine(`Now playing: ${this.playingTrack?.trackName}`);
                         this.terminal.append(
