@@ -4,9 +4,9 @@ import { ContextService } from 'src/context';
 import { Logger, LogLevel } from './logger';
 import which from 'which';
 import path from 'path';
-import { promises as fs, existsSync, createWriteStream } from 'fs';
+import { promises as fs, existsSync } from 'fs';
 import * as vscode from 'vscode';
-import fetch from 'node-fetch';
+import { download, DownloadEvent } from './downloader';
 
 export async function createMpv(context: ContextService) {
     const logLevel = LogLevel[Logger.Level] as any;
@@ -38,7 +38,7 @@ export async function createMpv(context: ContextService) {
             return systemBin;
         }
 
-        const bin = await tryDownloadBinary(context.globalStoragePath, 'mpv');
+        const bin = await tryDownloadBinary(context.globalStoragePath, logger);
         if (bin) {
             return bin;
         }
@@ -46,19 +46,23 @@ export async function createMpv(context: ContextService) {
     }
 }
 
-function getPrebuiltBinaries(os: string) {
+function getPrebuiltBinaries(os: string): { target: string; binPath: string } | undefined {
     if (os.startsWith('darwin-')) {
-        return 'https://laboratory.stolendata.net/~djinn/mpv_osx/mpv-latest.tar.gz';
+        return {
+            target: 'https://laboratory.stolendata.net/~djinn/mpv_osx/mpv-latest.tar.gz',
+            binPath: './Contents/MacOS/mpv',
+        };
     }
-    return null;
+    return undefined;
 }
 
-async function tryDownloadBinary(dir: string, filename: string): Promise<string | null> {
+async function tryDownloadBinary(dir: string, logger: Logger): Promise<string | null> {
     const os = `${process.platform}-${process.arch}`;
-    const target = getPrebuiltBinaries(os);
-    if (!target) {
+    const binaryInfo = getPrebuiltBinaries(os);
+    if (!binaryInfo) {
         return null;
     }
+    const { target, binPath } = binaryInfo;
 
     const choice = await vscode.window.showInformationMessage(
         'vscode-xmlya need download mpv as the playback service: https://mpv.io/',
@@ -68,21 +72,16 @@ async function tryDownloadBinary(dir: string, filename: string): Promise<string 
     if (choice === 'Not now') {
         return null;
     }
+
     await fs.mkdir(dir, { recursive: true }).catch((err) => {});
 
-    const response = await fetch(target);
-    if (response.body == null) {
-        throw new Error(
-            `failed to download mpv binary from ${target}, please install by yourself. https://mpv.io/installation/`
-        );
-    }
+    const downloadEvent = new vscode.EventEmitter<DownloadEvent>();
 
-    const filepath = path.resolve(dir, filename);
-    const fstream = createWriteStream(filepath);
-    await new Promise((resolve, reject) => {
-        response.body!.pipe(fstream);
-        response.body!.on('error', reject);
-        fstream.on('finish', resolve);
+    downloadEvent.event((ev) => {
+        logger.info(ev.type + ':', ev.value);
     });
-    return filepath;
+
+    await download(target, { directory: dir, downloadEvent });
+
+    return path.resolve(dir, binPath);
 }

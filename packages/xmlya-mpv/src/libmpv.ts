@@ -46,6 +46,7 @@ export class LibMpv extends Disposable {
     static async create(options: ILibMpvOptions = {}): Promise<LibMpv> {
         Logger.info('starting mpv');
         const binPath = options.mpvBinary?.trim() || 'mpv';
+
         const version = this.checkVer(binPath);
         if (!version) {
             throw new Error(`mpv version (${version}) is not supported.`);
@@ -58,7 +59,7 @@ export class LibMpv extends Disposable {
             ...(options.args ?? []),
         ]);
 
-        const mpvd = cp.spawn(binPath, combinedArguments, {
+        const mpvd = cp.spawn(`'${binPath}'`, combinedArguments, {
             windowsHide: true,
         });
 
@@ -82,7 +83,7 @@ export class LibMpv extends Disposable {
     }
 
     private static checkVer(binPath: string): string {
-        const stdout = cp.execSync(`${binPath} --version`, { encoding: 'utf-8' });
+        const stdout = cp.execSync(`'${binPath}' --version`, { encoding: 'utf-8' });
         // version maybe a release version or a git hash
         const match = stdout.match(/mpv\s+(\S+)/);
         if (!match?.[1]) {
