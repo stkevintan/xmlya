@@ -107,3 +107,17 @@ export function asyncInterval(cb: Action<Promise<void>>, ms: number): Disposable
     void loop();
     return { dispose: () => (working = false) };
 }
+
+export function formatSize(bytes: number): string {
+    let remains = bytes;
+    const units = ['B', 'KB', 'MB', 'GB'];
+    const ret: string[] = [];
+    for (const u of units) {
+        ret.push(`${remains % 1024}${u}`);
+        remains = Math.floor(remains / 1024);
+        if (remains === 0) {
+            break;
+        }
+    }
+    return ret.reverse().join(' ');
+}

@@ -59,7 +59,7 @@ export class LibMpv extends Disposable {
             ...(options.args ?? []),
         ]);
 
-        const mpvd = cp.spawn(`'${binPath}'`, combinedArguments, {
+        const mpvd = cp.spawn(binPath, combinedArguments, {
             windowsHide: true,
         });
 
