@@ -7,6 +7,7 @@ export interface IRenderOptions {
     items: QuickPickTreeItem[];
     pagination?: IPagination;
     sort?: SortOrder;
+    value?: string;
     onPageChange?: (pageNum: number, sort?: SortOrder) => void;
     onSortChange?: (sort: SortOrder) => void;
 }
@@ -113,7 +114,7 @@ export class QuickPick extends vscode.Disposable {
 
     private onDidAccept = async () => {
         const item = this.quickPick.selectedItems[0];
-        if (typeof item.onClick === 'function' && !this.quickPick.busy) {
+        if (item && typeof item.onClick === 'function' && !this.quickPick.busy) {
             const thenable = item.onClick(this);
             if (thenable && 'then' in thenable) {
                 this.quickPick.busy = true;
@@ -141,6 +142,10 @@ export class QuickPick extends vscode.Disposable {
 
     hide(): void {
         this.quickPick.hide();
+    }
+
+    get value(): string {
+        return this.quickPick.value;
     }
 
     toggleFolder = (folder: QuickPickTreeParent) => {
@@ -185,7 +190,7 @@ export class QuickPick extends vscode.Disposable {
         } else if (Array.isArray(param)) {
             options = { items: param };
         } else {
-            options = param;
+            options = { ...param };
         }
 
         if (action === 'push') {
@@ -197,7 +202,7 @@ export class QuickPick extends vscode.Disposable {
             this.historyStack.push([title, options]);
         }
 
-        const { items, pagination, sort, onPageChange, onSortChange } = options;
+        const { items, pagination, sort, onPageChange, onSortChange, value = '' } = options;
 
         if (pagination) {
             this.renderPagination({ pagination, sort, onPageChange, onSortChange });
@@ -207,12 +212,13 @@ export class QuickPick extends vscode.Disposable {
 
         this.curTreeItems = items;
         this.quickPick.busy = false;
-        this.quickPick.value = '';
+        this.quickPick.value = value;
         this.quickPick.enabled = true;
         this.quickPick.placeholder = title;
         const actions = action === 'ignore' ? [] : this.createActions();
         this.quickPick.items = this.flattenTree([...actions, ...items]);
         this.setActiveItems();
+        this.disposables.push(this.quickPick.onDidChangeValue((w) => (options.value = w)));
         this.quickPick.show();
     }
 

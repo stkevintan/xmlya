@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { IStatusBarItemSpec } from './components/status-bar';
-import { Callback, omitNillKeys, isntNil, isNil } from './lib';
+import { Callback, omitNillKeys, isntNil } from './lib';
 
 export enum ConfigKeys {
     Cookie = 'xmlya.cookie',

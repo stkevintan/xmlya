@@ -29,8 +29,7 @@ class DiscoverEntryTreeNode extends TreeNode {
                 .setIcon(new ThemeIcon('flame'))
                 .setCommand('xmlya.sidebar.soar', `${this.entry.title} - 新品榜`, this.entry.soar),
             ...this.entry.hotWord.map((word) => {
-                const node = new TreeNode(word);
-                node.iconPath = new ThemeIcon('tag');
+                const node = new TreeNode(word).setIcon(new ThemeIcon('tag')).setCommand('xmlya.global.search', word);
                 return node;
             }),
         ];

@@ -51,7 +51,7 @@ export async function createMpvInstance(context: ContextService) {
         const cancelLabel = 'Cancel';
         const okLabel = 'Install';
         const choice = await vscode.window.showInformationMessage(
-            'vscode-xmlya requires mpv as the playback service: https://mpv.io/',
+            'Ximalaya requires mpv as the playback service: https://mpv.io/',
             okLabel,
             cancelLabel
         );

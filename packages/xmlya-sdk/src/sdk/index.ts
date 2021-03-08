@@ -31,12 +31,19 @@ export class XmlyaSDK {
         };
     };
 
-    search = async (params: { core: string; kw: string; live?: boolean }) => {
+    search = async (params: { 
+        core?: 'all' | 'album' | 'track' | 'user' | 'live'; 
+        kw: string; 
+        live?: boolean 
+    } & T.IPaginator) => {
         return await this.client.get<T.SearchResult>('revision/search/main', {
+            core: 'all',
             ...params,
             spellchecker: true,
             device: 'iPhone',
-            live: !!params.live,
+            page: params.pageNum,
+            rows: params.pageSize,
+            live: params.core === 'live' ? true : !!params.live,
         });
     };
 
