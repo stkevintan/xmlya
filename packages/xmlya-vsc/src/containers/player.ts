@@ -30,7 +30,7 @@ export class Player extends Runnable {
         return this.playlist.find((track) => this.playingAudio?.trackId === track.trackId);
     }
 
-    private terminal!: Terminal;
+    private terminal: Terminal;
 
     constructor(private mpv: Mpv, sdk: XmlyaSDK, context: ContextService) {
         super(sdk, context);

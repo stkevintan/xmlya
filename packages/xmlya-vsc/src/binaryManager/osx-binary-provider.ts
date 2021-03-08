@@ -1,5 +1,5 @@
 import { IncomingMessage } from 'http';
-import { BinaryProvider } from './binaryProvider';
+import { BinaryProvider } from './binary-provider';
 import { promisify } from 'util';
 import { pipeline } from 'stream';
 import gunzip from 'gunzip-maybe';

@@ -1,8 +1,7 @@
-import { IPaginator } from '@xmlya/sdk';
+import { IPaginator, XmlyaSDK } from '@xmlya/sdk';
 import { AlbumListEntity, SoarEntity } from '@xmlya/sdk/dist/types/getRecomends';
 import { QuickPick, QuickPickTreeLeaf } from 'src/components/quick-pick';
 import { ContextService } from 'src/context';
-import { PromiseOrNot } from 'src/lib';
 import { command, Runnable } from 'src/runnable';
 import { window, Disposable, commands } from 'vscode';
 import { CategoryTreeDataProvider } from './category';
@@ -11,26 +10,29 @@ import { PlayingWebviewProvider } from './playing';
 import { UserTreeDataProvider } from './user';
 
 export class Sidebar extends Runnable {
-    private quickPick!: QuickPick;
-    private userTreeDataProvider!: UserTreeDataProvider;
-    private discoverTreeDataProvider!: DiscoverTreeDataProvider;
-    private categoryTreeDataProvider!: CategoryTreeDataProvider;
-    private playingWebviewProvider!: PlayingWebviewProvider;
+    private quickPick: QuickPick;
+    private userTreeDataProvider: UserTreeDataProvider;
+    private discoverTreeDataProvider: DiscoverTreeDataProvider;
+    private categoryTreeDataProvider: CategoryTreeDataProvider;
+    private playingWebviewProvider: PlayingWebviewProvider;
 
-    initialize(context: ContextService): PromiseOrNot<Disposable | undefined> {
+    constructor(sdk: XmlyaSDK, context: ContextService) {
+        super(sdk, context);
+
         this.quickPick = new QuickPick();
-
         this.userTreeDataProvider = new UserTreeDataProvider();
         this.discoverTreeDataProvider = new DiscoverTreeDataProvider(this.sdk);
         this.categoryTreeDataProvider = new CategoryTreeDataProvider(this.sdk);
         this.playingWebviewProvider = new PlayingWebviewProvider();
 
-        return Disposable.from(
-            this.quickPick,
-            window.registerTreeDataProvider('xmlya-user', this.userTreeDataProvider),
-            window.registerTreeDataProvider('xmlya-discover', this.discoverTreeDataProvider),
-            window.registerTreeDataProvider('xmlya-category', this.categoryTreeDataProvider),
-            window.registerWebviewViewProvider('xmlya-playing', this.playingWebviewProvider)
+        this.register(
+            Disposable.from(
+                this.quickPick,
+                window.registerTreeDataProvider('xmlya-user', this.userTreeDataProvider),
+                window.registerTreeDataProvider('xmlya-discover', this.discoverTreeDataProvider),
+                window.registerTreeDataProvider('xmlya-category', this.categoryTreeDataProvider),
+                window.registerWebviewViewProvider('xmlya-playing', this.playingWebviewProvider)
+            )
         );
     }
 

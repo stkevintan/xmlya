@@ -11,7 +11,15 @@ export enum LogLevel {
 function formatPrefix(componentName: string, logLevel: LogLevel) {
     return `[${new Date().toISOString()}] [${LogLevel[logLevel].toUpperCase()}] ${componentName} - `;
 }
-
+function formatMessages(messages: any[]): string {
+    return messages
+        .map((m) => {
+            if (!m) return '';
+            if (typeof m === 'object') return JSON.stringify(m, null, 2);
+            return m;
+        })
+        .join(' ');
+}
 export class Notification {
     static assert(x: any, message?: string): asserts x {
         if (x === null || x === undefined) {
@@ -45,7 +53,7 @@ export class Logger {
 
     private log(logLevel: LogLevel, messages: any[] = []) {
         if (Logger.Level <= logLevel) {
-            Logger.Channel?.appendLine(formatPrefix(this.componentName, logLevel) + messages.join(' '));
+            Logger.Channel?.appendLine(formatPrefix(this.componentName, logLevel) + formatMessages(messages));
         }
     }
 

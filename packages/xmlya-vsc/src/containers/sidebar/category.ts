@@ -1,8 +1,10 @@
 import { XmlyaSDK } from '@xmlya/sdk';
 import { CategoriesEntity, Category } from '@xmlya/sdk/dist/types/getCategories';
 import { TreeNode } from 'src/components/tree';
+import { Logger } from 'src/lib';
 import { EventEmitter, TreeDataProvider, Event, TreeItem, ThemeIcon, TreeItemCollapsibleState } from 'vscode';
 
+const logger = new Logger('sidetree-Category');
 export class CategoryRootTreeNode extends TreeNode {
     constructor(private c: Category) {
         super(c.name, TreeItemCollapsibleState.Collapsed);
@@ -63,7 +65,12 @@ export class CategoryTreeDataProvider implements TreeDataProvider<TreeNode> {
         if (element) {
             return element.getChildren();
         }
-        const cateogries = await this.sdk.getCategories();
-        return cateogries.map((c) => new CategoryRootTreeNode(c));
+        try {
+            const cateogries = await this.sdk.getCategories();
+            return cateogries.map((c) => new CategoryRootTreeNode(c));
+        } catch (err) {
+            logger.error(err.message);
+            throw err;
+        }
     }
 }

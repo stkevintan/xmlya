@@ -70,7 +70,7 @@
     {
         "key": "speed",
         "tooltip": "Set playback speed",
-        "text": "$(symbol-event) {player.speed}x",
+        "text": "{player.speed}x",
         "command": "xmlya.player.setSpeed",
         "when": "player.readyState != 'unload'"
     },
@@ -78,8 +78,7 @@
         "key": "playlist",
         "tooltip": "playlist",
         "text": "$(note)",
-        "command":"xmlya.player.showPlaylist"
-        // "when": "player.readyState == 'paused' || player.readyState == 'playing'"
-    },
-    { "key": "menu", "tooltip": "Ximalaya", "text": "$(broadcast)", "command": "xmlya.user.menu" }
+        "command":"xmlya.player.showPlaylist",
+        "when": "player.hasNext || player.hasPrev"
+    }
 ]

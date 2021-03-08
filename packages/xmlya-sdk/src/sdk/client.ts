@@ -88,14 +88,14 @@ export class Client implements IClient {
     }
 
     protected parse<T = unknown, R = {}>(response: Response<string>): ResBody<T> & R {
-        assert(response?.body, `response of ${response.url}[${response.method}] doesn't have a body`);
+        assert(response?.body, `Failed to parse [${response.method}]${response.url}: empty body`);
         return JSON.parse(response.body);
     }
 
     async ['get']<T = unknown>(url: string, params?: Options['searchParams'], options?: OverrideOptions): Promise<T> {
         const body = await this.getRaw<T>(url, params, options);
         const okCode = url.includes('nyx') ? 0 : 200;
-        assert(body.ret === okCode, `response of ${url}[GET] failed, msg: ${body.msg}`);
+        assert(body.ret === okCode, `Get ${url} failed: ${body.msg}`);
         return body.data!;
     }
 

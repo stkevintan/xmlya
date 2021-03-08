@@ -1,6 +1,7 @@
 import { XmlyaSDK } from '@xmlya/sdk';
 import { CardsEntity } from '@xmlya/sdk/dist/types/getRecomends';
 import { TreeNode } from 'src/components/tree';
+import { Logger } from 'src/lib';
 import {
     TreeDataProvider,
     TreeItem,
@@ -11,6 +12,7 @@ import {
     ThemeIcon,
 } from 'vscode';
 
+const logger = new Logger('sidetree-Discover');
 class DiscoverEntryTreeNode extends TreeNode {
     constructor(private entry: CardsEntity) {
         super(entry.title, TreeItemCollapsibleState.Collapsed);
@@ -53,7 +55,12 @@ export class DiscoverTreeDataProvider implements TreeDataProvider<TreeNode> {
         if (element) {
             return element.getChildren();
         }
-        const { cards } = await this.sdk.getRecommend();
-        return cards.map((c) => new DiscoverEntryTreeNode(c));
+        try {
+            const { cards } = await this.sdk.getRecommend();
+            return cards.map((c) => new DiscoverEntryTreeNode(c));
+        } catch (err) {
+            logger.error(err.message);
+            throw err;
+        }
     }
 }
