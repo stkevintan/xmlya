@@ -56,7 +56,10 @@ export class User extends Runnable {
                         detail: album.description,
                         description: album.subTitle,
                         onClick: () => {
-                            void vscode.commands.executeCommand('xmlya.player.showAlbumTracks', this.quickPick, album);
+                            void vscode.commands.executeCommand('xmlya.player.showAlbumTracks', {
+                                album,
+                                quickPick: this.quickPick,
+                            });
                         },
                     })
             )
@@ -103,7 +106,10 @@ export class User extends Runnable {
                         description: album.subTitle,
                         detail: album.description,
                         onClick: () => {
-                            void vscode.commands.executeCommand('xmlya.player.showAlbumTracks', this.quickPick, album);
+                            void vscode.commands.executeCommand('xmlya.player.showAlbumTracks', {
+                                album,
+                                quickPick: this.quickPick,
+                            });
                         },
                     })
             ),
@@ -139,7 +145,10 @@ export class User extends Runnable {
                             detail: `${item.description}`,
                             onClick: () => {
                                 quickPick.hide();
-                                void vscode.commands.executeCommand('xmlya.palyer.showAlbumTracks', item);
+                                void vscode.commands.executeCommand('xmlya.palyer.showAlbumTracks', {
+                                    item,
+                                    quickPick: this.quickPick,
+                                });
                             },
                         })
                 ),

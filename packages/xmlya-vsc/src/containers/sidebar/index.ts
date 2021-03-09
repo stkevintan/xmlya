@@ -48,9 +48,12 @@ export class Sidebar extends Runnable {
                         description: `${album.albumPlayCount}`,
                         detail: `${album.albumUserNickName} ${album.intro}`,
                         onClick: () => {
-                            void commands.executeCommand('xmlya.player.showAlbumTracks', this.quickPick, {
-                                id: album.albumId,
-                                title: album.albumTitle,
+                            void commands.executeCommand('xmlya.player.showAlbumTracks', {
+                                quickPick: this.quickPick,
+                                album: {
+                                    id: album.albumId,
+                                    title: album.albumTitle,
+                                },
                             });
                         },
                     })
@@ -67,9 +70,12 @@ export class Sidebar extends Runnable {
                         description: `${album.playCount}`,
                         detail: `${album.anchorName} ${album.tagStr}`,
                         onClick: () => {
-                            void commands.executeCommand('xmlya.player.showAlbumTracks', this.quickPick, {
-                                id: album.id,
-                                title: album.albumTitle,
+                            void commands.executeCommand('xmlya.player.showAlbumTracks', {
+                                quickPick: this.quickPick,
+                                album: {
+                                    id: album.id,
+                                    title: album.albumTitle,
+                                },
                             });
                         },
                     })
@@ -106,9 +112,12 @@ export class Sidebar extends Runnable {
                             description: `${album.playCount}`,
                             detail: `${album.anchorName}`,
                             onClick: () => {
-                                void commands.executeCommand('xmlya.player.showAlbumTracks', this.quickPick, {
-                                    id: album.albumId,
-                                    title: album.title,
+                                void commands.executeCommand('xmlya.player.showAlbumTracks', {
+                                    quickPick: this.quickPick,
+                                    album: {
+                                        id: album.albumId,
+                                        title: album.title,
+                                    },
                                 });
                             },
                         })
@@ -123,7 +132,7 @@ export class Sidebar extends Runnable {
 
     @command('global.search')
     async search(keyword?: string, type?: SearchType) {
-        const quickPick = new QuickPick({ disposeOnHide: true });
+        const quickPick = new QuickPick({ disposeOnHide: true, ignoreFocusOut: true });
         const toOptions = (type: SearchType) =>
             new QuickPickTreeLeaf('$(search)', {
                 description: `Search in ${type}`,
@@ -162,10 +171,13 @@ export class Sidebar extends Runnable {
                         description: `${doc.playCount} ${doc.nickname}`,
                         detail: doc.customTitle || doc.intro,
                         alwaysShow: true,
-                        onClick: (picker) => {
-                            void commands.executeCommand('xmlya.player.showAlbumTracks', picker, {
-                                title: doc.title,
-                                id: doc.albumId,
+                        onClick: () => {
+                            void commands.executeCommand('xmlya.player.showAlbumTracks', {
+                                quickPick,
+                                album: {
+                                    title: doc.title,
+                                    id: doc.albumId,
+                                },
                             });
                         },
                     })

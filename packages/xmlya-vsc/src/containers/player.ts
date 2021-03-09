@@ -4,7 +4,7 @@ import { GetContextTracksResult, GetTrackAudioResult, IPaginator, ISortablePagin
 import { Notification } from '../lib/logger';
 import { ConfigKeys, Configuration } from '../configuration';
 import { StatusBar } from '../components/status-bar';
-import { asyncInterval, delay, ellipsis, formatDuration, openUrl } from '../lib';
+import { asyncInterval, ellipsis, formatDuration } from '../lib';
 import { Mpv } from '@xmlya/mpv';
 import { QuickPick, QuickPickTreeLeaf, QuickPickTreeParent } from '../components/quick-pick';
 import controls from '../playctrls.json';
@@ -322,7 +322,7 @@ export class Player extends Runnable {
             new QuickPickTreeLeaf('$(repo)', {
                 description: info.albumInfo.title,
                 onClick: () => {
-                    void this.showAlbumTracks({ title: info.albumInfo.title, id: info.albumInfo.albumId });
+                    void this.showAlbumTracks({ album: { title: info.albumInfo.title, id: info.albumInfo.albumId } });
                 },
             }),
             new QuickPickTreeLeaf('$(cloud-download)', {
@@ -535,21 +535,21 @@ export class Player extends Runnable {
     }
     @command('player.showAlbumTracks')
     async showAlbumTracks(
-        album: {
-            title: string;
-            id: number;
-        },
-        params?: ISortablePaginator,
+        {
+            quickPick = this.quickPick,
+            album,
+            params,
+        }: { quickPick?: QuickPick; album: { title: string; id: number }; params?: ISortablePaginator },
         bySelf = false
     ) {
         if (album === undefined) return;
         const title = `${album.title}`;
-        this.quickPick.loading(title);
+        quickPick.loading(title);
         const { tracks, pageNum, pageSize, totalCount, sort } = await this.sdk.getTracksOfAlbum({
             albumId: album.id,
             ...params,
         });
-        this.quickPick.render(
+        quickPick.render(
             title,
             {
                 items: tracks.map(
@@ -564,8 +564,10 @@ export class Player extends Runnable {
                 ),
                 sort,
                 pagination: { pageNum, pageSize, totalCount },
-                onPageChange: (pageNum) => this.showAlbumTracks(album, { ...params, pageNum }, true),
-                onSortChange: (sort) => this.showAlbumTracks(album, { ...params, sort, pageNum: 1 }, true),
+                onPageChange: (pageNum) =>
+                    this.showAlbumTracks({ quickPick, album, params: { ...params, pageNum } }, true),
+                onSortChange: (sort) =>
+                    this.showAlbumTracks({ quickPick, album, params: { ...params, sort, pageNum: 1 } }, true),
             },
             bySelf ? 'replace' : 'push'
         );

@@ -139,6 +139,9 @@ export class XmlyaSDK {
 
     getNonFreeTrackAudioSrc = async (params: { trackId: number }): Promise<string> => {
         const audio = await this.getNonFreeTrackAudio(params);
+        if(audio.ret !== 0) {
+            throw new Error(`Error(${audio.ret}): ${audio.msg}`);
+        }
         return await decodeNonFreeAudioSrc(audio);
     };
 
