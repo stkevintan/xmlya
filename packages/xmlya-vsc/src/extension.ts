@@ -1,8 +1,7 @@
 import { Client, XmlyaSDK } from '@xmlya/sdk';
 import * as vscode from 'vscode';
 import { Configuration } from './configuration';
-import { App } from './containers/app';
-import { Common } from './containers/common';
+import { User } from './containers/user';
 import { Player } from './containers/player';
 import { Sidebar } from './containers/sidebar';
 import { ContextService } from './context';
@@ -24,8 +23,7 @@ export async function activate(_context: vscode.ExtensionContext) {
         const mpv = await createMpvInstance(context);
         if (mpv) {
             //setup components
-            new Common(sdk, context).run();
-            new App(sdk, context).run();
+            new User(sdk, context).run();
             new Player(mpv, sdk, context).run();
             new Sidebar(sdk, context).run();
         }

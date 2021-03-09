@@ -48,7 +48,7 @@ export class Sidebar extends Runnable {
                         description: `${album.albumPlayCount}`,
                         detail: `${album.albumUserNickName} ${album.intro}`,
                         onClick: () => {
-                            void commands.executeCommand('xmlya.common.showAlbumTracks', this.quickPick, {
+                            void commands.executeCommand('xmlya.player.showAlbumTracks', this.quickPick, {
                                 id: album.albumId,
                                 title: album.albumTitle,
                             });
@@ -67,7 +67,7 @@ export class Sidebar extends Runnable {
                         description: `${album.playCount}`,
                         detail: `${album.anchorName} ${album.tagStr}`,
                         onClick: () => {
-                            void commands.executeCommand('xmlya.common.showAlbumTracks', this.quickPick, {
+                            void commands.executeCommand('xmlya.player.showAlbumTracks', this.quickPick, {
                                 id: album.id,
                                 title: album.albumTitle,
                             });
@@ -106,7 +106,7 @@ export class Sidebar extends Runnable {
                             description: `${album.playCount}`,
                             detail: `${album.anchorName}`,
                             onClick: () => {
-                                void commands.executeCommand('xmlya.common.showAlbumTracks', this.quickPick, {
+                                void commands.executeCommand('xmlya.player.showAlbumTracks', this.quickPick, {
                                     id: album.albumId,
                                     title: album.title,
                                 });
@@ -163,7 +163,7 @@ export class Sidebar extends Runnable {
                         detail: doc.customTitle || doc.intro,
                         alwaysShow: true,
                         onClick: (picker) => {
-                            void commands.executeCommand('xmlya.common.showAlbumTracks', picker, {
+                            void commands.executeCommand('xmlya.player.showAlbumTracks', picker, {
                                 title: doc.title,
                                 id: doc.albumId,
                             });
@@ -192,7 +192,7 @@ export class Sidebar extends Runnable {
                         detail: `tracks: ${doc.tracksCount}, followers: ${doc.followersCount}, followings: ${doc.followingsCount}`,
                         alwaysShow: true,
                         onClick: (picker) => {
-                            void commands.executeCommand('xmlya.common.showUser', picker, doc.uid);
+                            void commands.executeCommand('xmlya.user.detail', picker, doc.uid);
                         },
                     })
             );

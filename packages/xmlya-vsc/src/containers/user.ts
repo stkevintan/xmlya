@@ -3,7 +3,7 @@ import { IPaginator } from '@xmlya/sdk';
 import { QuickPick, QuickPickTreeLeaf, QuickPickTreeParent } from '../components/quick-pick';
 import { command, Runnable } from '../runnable';
 
-export class App extends Runnable {
+export class User extends Runnable {
     private quickPick: QuickPick = this.register(new QuickPick());
 
     @command('user.playHistory')
@@ -56,7 +56,7 @@ export class App extends Runnable {
                         detail: album.description,
                         description: album.subTitle,
                         onClick: () => {
-                            void vscode.commands.executeCommand('xmlya.common.showAlbumTracks', this.quickPick, album);
+                            void vscode.commands.executeCommand('xmlya.player.showAlbumTracks', this.quickPick, album);
                         },
                     })
             )
@@ -103,10 +103,65 @@ export class App extends Runnable {
                         description: album.subTitle,
                         detail: album.description,
                         onClick: () => {
-                            void vscode.commands.executeCommand('xmlya.common.showAlbumTracks', this.quickPick, album);
+                            void vscode.commands.executeCommand('xmlya.player.showAlbumTracks', this.quickPick, album);
                         },
                     })
             ),
         });
+    }
+
+    @command('user.detail')
+    async detail(quickPick: QuickPick, uid: number) {
+        if (quickPick === undefined || uid === undefined) return;
+        quickPick.loading();
+        const [user, pub] = await Promise.all([this.sdk.getUserInfo({ uid }), this.sdk.getUserPub({ uid })]);
+        quickPick.render(user.nickName, [
+            new QuickPickTreeParent('Profile', {
+                children: [
+                    new QuickPickTreeLeaf('$(location)', {
+                        description: `${user.province} ${user.city}`,
+                    }),
+                    new QuickPickTreeLeaf('$(telescope)', {
+                        description: user.constellationStr,
+                    }),
+                    new QuickPickTreeLeaf('$(organization)', { description: `${user.fansCount}` }),
+                    new QuickPickTreeLeaf('$(symbol-color)', {
+                        description: user.personalSignature,
+                    }),
+                ],
+            }),
+            new QuickPickTreeParent(`Published Albums`, {
+                description: `${pub.pubPageInfo.totalCount}`,
+                children: pub.pubPageInfo.pubInfoList.map(
+                    (item) =>
+                        new QuickPickTreeLeaf(item.title, {
+                            description: item.subTitle,
+                            detail: `${item.description}`,
+                            onClick: () => {
+                                quickPick.hide();
+                                void vscode.commands.executeCommand('xmlya.palyer.showAlbumTracks', item);
+                            },
+                        })
+                ),
+            }),
+            new QuickPickTreeParent('Published Tracks', {
+                description: `${pub.trackPageInfo.totalCount}`,
+                children: pub.trackPageInfo.trackInfoList.map(
+                    (item) =>
+                        new QuickPickTreeLeaf(item.title, {
+                            description: item.durationAsString,
+                            detail: item.albumTitle,
+                            onClick: () => {
+                                quickPick.hide();
+                                void vscode.commands.executeCommand(
+                                    'xmlya.player.playTrack',
+                                    item.trackId,
+                                    item.albumId
+                                );
+                            },
+                        })
+                ),
+            }),
+        ]);
     }
 }

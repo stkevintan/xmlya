@@ -24,16 +24,25 @@
                     "id": "xmlya-container",
                     "title": "Ximalaya FM"
                 }
+            ],
+            "panel": [
+                {
+                    "icon": "static/logo_hollow.svg",
+                    "id": "xmlya-panel",
+                    "title": "Ximalya FM"
+                }
             ]
         },
         "views": {
-            "xmlya-container": [
+            "xmlya-panel": [
                 {
                     "id": "xmlya-playing",
                     "name": "Playing",
                     "contextualTitle": "Playing",
                     "type": "webview"
-                },
+                }
+            ],
+            "xmlya-container": [
                 {
                     "id": "xmlya-user",
                     "contextualTitle": "User",
@@ -124,6 +133,11 @@
                 "category": "Ximalaya"
             },
             {
+                "title": "User Detail",
+                "command": "xmlya.user.detail",
+                "category": "Ximalaya"
+            },
+            {
                 "title": "Play Track",
                 "command": "xmlya.player.playTrack",
                 "category": "Ximalaya"
@@ -185,12 +199,7 @@
             },
             {
                 "title": "Show album tracks",
-                "command": "xmlya.common.showAlbumTracks",
-                "category": "Ximalaya"
-            },
-            {
-                "title": "Show user",
-                "command": "xmlya.common.showUser",
+                "command": "xmlya.player.showAlbumTracks",
                 "category": "Ximalaya"
             },
             {

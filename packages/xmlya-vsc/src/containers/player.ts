@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { command, Runnable } from '../runnable';
-import { GetContextTracksResult, GetTrackAudioResult, GetTrackPageInfoResult, IPaginator, XmlyaSDK } from '@xmlya/sdk';
+import { GetContextTracksResult, GetTrackAudioResult, IPaginator, ISortablePaginator, XmlyaSDK } from '@xmlya/sdk';
 import { Notification } from '../lib/logger';
 import { ConfigKeys, Configuration } from '../configuration';
 import { StatusBar } from '../components/status-bar';
@@ -316,16 +316,13 @@ export class Player extends Runnable {
             new QuickPickTreeLeaf('$(account)', {
                 description: info.userInfo.nickname,
                 onClick: () => {
-                    void vscode.commands.executeCommand('xmlya.common.showUser', this.quickPick, info.userInfo.uid);
+                    void vscode.commands.executeCommand('xmlya.user.detail', this.quickPick, info.userInfo.uid);
                 },
             }),
             new QuickPickTreeLeaf('$(repo)', {
                 description: info.albumInfo.title,
                 onClick: () => {
-                    void vscode.commands.executeCommand('xmlya.common.showAlbumTracks', this.quickPick, {
-                        title: info.albumInfo.title,
-                        id: info.albumInfo.albumId,
-                    });
+                    void this.showAlbumTracks({ title: info.albumInfo.title, id: info.albumInfo.albumId });
                 },
             }),
             new QuickPickTreeLeaf('$(cloud-download)', {
@@ -535,5 +532,42 @@ export class Player extends Runnable {
             }
         });
         this.terminal.show();
+    }
+    @command('player.showAlbumTracks')
+    async showAlbumTracks(
+        album: {
+            title: string;
+            id: number;
+        },
+        params?: ISortablePaginator,
+        bySelf = false
+    ) {
+        if (album === undefined) return;
+        const title = `${album.title}`;
+        this.quickPick.loading(title);
+        const { tracks, pageNum, pageSize, totalCount, sort } = await this.sdk.getTracksOfAlbum({
+            albumId: album.id,
+            ...params,
+        });
+        this.quickPick.render(
+            title,
+            {
+                items: tracks.map(
+                    (track) =>
+                        new QuickPickTreeLeaf(track.title, {
+                            description: track.createDateFormat,
+                            onClick: (picker) => {
+                                picker.hide();
+                                void vscode.commands.executeCommand('xmlya.player.playTrack', track.trackId, album.id);
+                            },
+                        })
+                ),
+                sort,
+                pagination: { pageNum, pageSize, totalCount },
+                onPageChange: (pageNum) => this.showAlbumTracks(album, { ...params, pageNum }, true),
+                onSortChange: (sort) => this.showAlbumTracks(album, { ...params, sort, pageNum: 1 }, true),
+            },
+            bySelf ? 'replace' : 'push'
+        );
     }
 }
