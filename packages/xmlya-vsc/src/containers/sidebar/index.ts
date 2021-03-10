@@ -1,3 +1,4 @@
+import { Mpv } from '@xmlya/mpv';
 import { IPaginator, SearchResult, XmlyaSDK } from '@xmlya/sdk';
 import { AlbumListEntity, SoarEntity } from '@xmlya/sdk/dist/types/getRecomends';
 import { QuickPick, QuickPickTreeLeaf, QuickPickTreeParent } from 'src/components/quick-pick';
@@ -18,14 +19,14 @@ export class Sidebar extends Runnable {
     private categoryTreeDataProvider: CategoryTreeDataProvider;
     private playingWebviewProvider: PlayingWebviewProvider;
 
-    constructor(sdk: XmlyaSDK, context: ContextService) {
+    constructor(private mpv: Mpv, sdk: XmlyaSDK, context: ContextService) {
         super(sdk, context);
 
         this.quickPick = new QuickPick();
         this.userTreeDataProvider = new UserTreeDataProvider();
         this.discoverTreeDataProvider = new DiscoverTreeDataProvider(this.sdk);
         this.categoryTreeDataProvider = new CategoryTreeDataProvider(this.sdk);
-        this.playingWebviewProvider = new PlayingWebviewProvider();
+        this.playingWebviewProvider = new PlayingWebviewProvider(mpv, context);
 
         this.register(
             Disposable.from(
@@ -91,6 +92,11 @@ export class Sidebar extends Runnable {
     @command('discover.refresh')
     async refreshDiscover() {
         this.discoverTreeDataProvider.refresh();
+    }
+
+    @command('playing.refresh')
+    async refreshPlaying() {
+        this.playingWebviewProvider.refresh();
     }
 
     @command('sidebar.showAlbumsOfCategory')

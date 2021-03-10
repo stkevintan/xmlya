@@ -4,7 +4,7 @@ import { GetContextTracksResult, GetTrackAudioResult, IPaginator, ISortablePagin
 import { Notification } from '../lib/logger';
 import { ConfigKeys, Configuration } from '../configuration';
 import { StatusBar } from '../components/status-bar';
-import { asyncInterval, ellipsis, formatDuration } from '../lib';
+import { asyncInterval, formatDuration } from '../lib';
 import { Mpv } from '@xmlya/mpv';
 import { QuickPick, QuickPickTreeLeaf, QuickPickTreeParent } from '../components/quick-pick';
 import controls from '../playctrls.json';
@@ -148,7 +148,12 @@ export class Player extends Runnable {
             this.playContext = await this.sdk.getContextTracks({ trackId });
         }
         assert(this.playingTrack, 'no track to play');
-        this.context.set('player.trackTitle', ellipsis(this.playingTrack.trackName, 20));
+        this.context.set({
+            'player.trackTitle': this.playingTrack.trackName,
+            'player.trackAlbum': this.playingTrack.albumName,
+            'player.trackDuration': this.playingTrack.duration,
+            'player.trackCover': `https://imagev2.xmcdn.com/${this.playingTrack.trackCoverPath}`
+        });
 
         const index = this.playlist.findIndex((item) => item.trackId === this.playingAudio?.trackId);
         if (index !== -1) {

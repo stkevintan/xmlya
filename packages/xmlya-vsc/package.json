@@ -221,6 +221,11 @@
                 "title": "Refresh",
                 "command": "xmlya.discover.refresh",
                 "icon": "$(refresh)"
+            },
+            {
+                "title": "Refresh",
+                "command": "xmlya.playing.refresh",
+                "icon": "$(refresh)"
             }
         ],
         "colors": [
@@ -244,6 +249,11 @@
                 {
                     "command": "xmlya.discover.refresh",
                     "when": "view == xmlya-discover",
+                    "group": "navigation"
+                },
+                {
+                    "command": "xmlya.playing.refresh",
+                    "when": "view == xmlya-playing",
                     "group": "navigation"
                 },
                 {

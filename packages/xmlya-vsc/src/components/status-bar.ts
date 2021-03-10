@@ -1,5 +1,6 @@
 import { ConfigKeys, Configuration } from 'src/configuration';
 import { ContextService, When } from 'src/context';
+import { ellipsis } from 'src/lib';
 import { debounce } from 'throttle-debounce-ts';
 import * as vscode from 'vscode';
 
@@ -69,7 +70,7 @@ export class StatusBar extends vscode.Disposable {
         let itemIndex = 0;
         for (const spec of this.patchedSpecs.filter((spec) => ctx.testWhen(spec.when))) {
             const item = this.items[itemIndex] ?? this.createNewItem();
-            item.text = ctx.parseString(spec.text);
+            item.text = ellipsis(ctx.parseString(spec.text), 20);
             item.tooltip = spec.tooltip;
             item.color = spec.color;
             item.command = this.makeCommand(spec.command, spec.arguments);

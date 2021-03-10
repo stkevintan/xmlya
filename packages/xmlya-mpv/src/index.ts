@@ -175,7 +175,7 @@ export class Mpv extends Disposable {
      * @param mode
      */
     async seek(pos: number, mode: 'relative' | 'absolute' | 'absolute-percent' | 'relative-percent' = 'relative') {
-        await this.lib.exec('seek', pos, mode, 'exactly');
+        await this.lib.exec('seek', pos, mode);
     }
     on = this.lib.on.bind(this.lib);
     once = this.lib.once.bind(this.lib);

@@ -25,7 +25,7 @@ export async function activate(_context: vscode.ExtensionContext) {
             //setup components
             new User(sdk, context).run();
             new Player(mpv, sdk, context).run();
-            new Sidebar(sdk, context).run();
+            new Sidebar(mpv, sdk, context).run();
         }
     } catch (err) {
         // show error
