@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { command, Runnable } from '../runnable';
 import { GetContextTracksResult, GetTrackAudioResult, IPaginator, ISortablePaginator, XmlyaSDK } from '@xmlya/sdk';
 import { Notification } from '../lib/logger';
-import { ConfigKeys, Configuration } from '../configuration';
+import { Configuration } from '../configuration';
 import { StatusBar } from '../components/status-bar';
 import { asyncInterval, formatDuration } from '../lib';
 import { Mpv } from '@xmlya/mpv';
@@ -12,7 +12,6 @@ import { ContextService } from 'src/context';
 import { createWriteStream } from 'fs';
 import { pipeline } from 'stream';
 import { promisify } from 'util';
-import { Terminal, TerminalEvents } from '../components/terminal';
 import assert from 'assert';
 const pipe = promisify(pipeline);
 
@@ -30,14 +29,9 @@ export class Player extends Runnable {
         return this.playlist.find((track) => this.playingAudio?.trackId === track.trackId);
     }
 
-    private terminal: Terminal;
-
     constructor(private mpv: Mpv, sdk: XmlyaSDK, context: ContextService) {
         super(sdk, context);
 
-        this.terminal = new Terminal();
-        const syncCtxRefs = this.syncContext(context);
-        const syncConfRefs = this.syncConf();
         // construct the status bar.
         const statusBar = new StatusBar(controls, Configuration.statusBarItemBase);
         // render in current context
@@ -50,96 +44,14 @@ export class Player extends Runnable {
         });
 
         this.register(
-            vscode.Disposable.from(
-                ...syncCtxRefs,
-                ...syncConfRefs,
-                statusBar,
-                this.quickPick,
-                this.terminal,
-                traceRef,
-                {
-                    dispose: () => this.traceContext?.start(),
-                }
-            )
+            vscode.Disposable.from(statusBar, this.quickPick, traceRef, {
+                dispose: () => this.traceContext?.start(),
+            })
         );
     }
 
-    private syncConf(): vscode.Disposable[] {
-        const syncStart = () => {
-            const { playbackStart } = Configuration;
-            void this.mpv.startOffset(playbackStart ? `+${Configuration.playbackStart}` : 'none');
-        };
-        const syncEnd = () => {
-            const { playbackEnd } = Configuration;
-            void this.mpv.endOffset(playbackEnd ? `-${Configuration.playbackEnd}` : 'none');
-        };
-        syncStart();
-        syncEnd();
-        return [
-            Configuration.onUpdate((keys) => {
-                if (keys.includes(ConfigKeys.PlaybackStart)) {
-                    syncStart();
-                }
-                if (keys.includes(ConfigKeys.PlaybackEnd)) {
-                    syncEnd();
-                }
-            }),
-        ];
-    }
-
-    private syncContext(ctx: ContextService): vscode.Disposable[] {
-        // add watches
-        return [
-            this.mpv.watch<boolean>('core-idle', (active) => {
-                if (!active) ctx.set('player.readyState', 'playing');
-            }),
-            this.mpv.watch<boolean>('idle-active', (active) => {
-                if (active) ctx.set('player.readyState', 'idle');
-            }),
-            this.mpv.watch<boolean>('mute', (mute) => {
-                ctx.set('player.isMuted', !!mute);
-                void ctx.globalState.update('xmlya.player.isMuted', !!mute);
-            }),
-
-            this.mpv.watch<boolean>('seek', (seeking) => {
-                if (seeking) ctx.set('player.readyState', 'seeking');
-            }),
-            this.mpv.watch<number>('volume', (volume) => {
-                ctx.set('player.volume', volume);
-                void ctx.globalState.update('xmlya.player.volume', volume);
-            }),
-            // this.mpv.watch<number>('time-remaining', (countdown) => {
-            //     countdown = Math.ceil(countdown);
-            //     const prevRemaining = ctx.get<number>('player.timeRemaining');
-            //     if (prevRemaining === countdown) return;
-            //     ctx.set('player.timeRemaining', countdown);
-            //     ctx.set('player.timeRemainingFormatted', formatDuration(countdown));
-            // }),
-            this.mpv.watch<number>('speed', (speed) => {
-                ctx.set('player.speed', speed);
-                void ctx.globalState.update('xmlya.player.speed', speed);
-            }),
-            this.mpv.on('start-file', () => {
-                ctx.set('player.readyState', 'loading');
-            }),
-            this.mpv.on('pause', () => {
-                ctx.set('player.readyState', 'paused');
-            }),
-            this.mpv.on('end-file', (data) => {
-                if (['error', 'unknown'].includes(data.reason)) {
-                    ctx.set('player.readyState', 'error');
-                } else if (data.reason === 'quit') {
-                    ctx.set('plyaer.readyState', 'unload');
-                } else if (data.reason === 'eof') {
-                    // try to play next track.
-                    void vscode.commands.executeCommand('xmlya.player.goNext');
-                }
-            }),
-        ];
-    }
-
-    @command('player.playTrack', 'Loading track...')
-    async playTrack(trackId: number, albumId: number) {
+    @command('player.play', 'Loading track...')
+    async play(trackId: number, albumId: number) {
         if (trackId === undefined || albumId === undefined) return;
         this.playingAudio = await this.sdk.getTrackAudio({ trackId });
         Notification.assert(this.playingAudio, 'No track to play.');
@@ -152,7 +64,7 @@ export class Player extends Runnable {
             'player.trackTitle': this.playingTrack.trackName,
             'player.trackAlbum': this.playingTrack.albumName,
             'player.trackDuration': this.playingTrack.duration,
-            'player.trackCover': `https://imagev2.xmcdn.com/${this.playingTrack.trackCoverPath}`
+            'player.trackCover': `https://imagev2.xmcdn.com/${this.playingTrack.trackCoverPath}`,
         });
 
         const index = this.playlist.findIndex((item) => item.trackId === this.playingAudio?.trackId);
@@ -321,13 +233,20 @@ export class Player extends Runnable {
             new QuickPickTreeLeaf('$(account)', {
                 description: info.userInfo.nickname,
                 onClick: () => {
-                    void vscode.commands.executeCommand('xmlya.user.detail', this.quickPick, info.userInfo.uid);
+                    void vscode.commands.executeCommand(
+                        'xmlya.common.showUserProfile',
+                        this.quickPick,
+                        info.userInfo.uid
+                    );
                 },
             }),
             new QuickPickTreeLeaf('$(repo)', {
                 description: info.albumInfo.title,
                 onClick: () => {
-                    void this.showAlbumTracks({ album: { title: info.albumInfo.title, id: info.albumInfo.albumId } });
+                    void vscode.commands.executeCommand('xmlya.common.showAlbumTracks', this.quickPick, {
+                        title: info.albumInfo.title,
+                        id: info.albumInfo.albumId,
+                    });
                 },
             }),
             new QuickPickTreeLeaf('$(cloud-download)', {
@@ -365,7 +284,7 @@ export class Player extends Runnable {
                 description: formatDuration(item.duration),
                 onClick: () => {
                     quickPick.hide();
-                    void this.playTrack(item.trackId, item.albumId);
+                    void this.play(item.trackId, item.albumId);
                 },
             });
         });
@@ -479,9 +398,9 @@ export class Player extends Runnable {
             track = this.playlist.find((item) => item.index === index);
         }
         if (track) {
-            await this.playTrack(track.trackId, track.albumId);
+            await this.play(track.trackId, track.albumId);
         } else {
-            void vscode.window.showWarningMessage('Failed to get next track');
+            void vscode.window.showWarningMessage('Already the last track');
         }
     }
 
@@ -499,82 +418,9 @@ export class Player extends Runnable {
             track = this.playlist.find((item) => item.index === index);
         }
         if (track) {
-            await this.playTrack(track.trackId, track.albumId);
+            await this.play(track.trackId, track.albumId);
         } else {
-            void vscode.window.showWarningMessage('Failed to get previous track');
+            void vscode.window.showWarningMessage('Already the first track');
         }
-    }
-
-    @command('player.toggleProgress')
-    async toggleProgress() {
-        if (this.terminal.shown) {
-            this.terminal.hide();
-            return;
-        }
-        let sub: vscode.Disposable | undefined;
-        this.terminal.event((e) => {
-            if (e === TerminalEvents.Hide || e === TerminalEvents.Close) {
-                sub?.dispose();
-            }
-            if (e === TerminalEvents.Show) {
-                let writtenLines = 0;
-                sub = asyncInterval(async () => {
-                    if (writtenLines) {
-                        this.terminal.eraseLine(writtenLines);
-                        writtenLines = 0;
-                    }
-                    if (['playing', 'paused', 'seeking'].includes(this.context.get<string>('player.readyState')!)) {
-                        const pos = Math.floor(await this.mpv.getPercentPosition());
-                        this.terminal.appendLine(`Now playing: ${this.playingTrack?.trackName}`);
-                        this.terminal.append(
-                            `${pos}% ${Array.from({ length: 50 }, (_, index) => (index * 2 > pos ? '░' : '█')).join(
-                                ''
-                            )}`
-                        );
-                        writtenLines += 2;
-                    }
-                }, 1000);
-            }
-        });
-        this.terminal.show();
-    }
-    @command('player.showAlbumTracks')
-    async showAlbumTracks(
-        {
-            quickPick = this.quickPick,
-            album,
-            params,
-        }: { quickPick?: QuickPick; album: { title: string; id: number }; params?: ISortablePaginator },
-        bySelf = false
-    ) {
-        if (album === undefined) return;
-        const title = `${album.title}`;
-        quickPick.loading(title);
-        const { tracks, pageNum, pageSize, totalCount, sort } = await this.sdk.getTracksOfAlbum({
-            albumId: album.id,
-            ...params,
-        });
-        quickPick.render(
-            title,
-            {
-                items: tracks.map(
-                    (track) =>
-                        new QuickPickTreeLeaf(track.title, {
-                            description: track.createDateFormat,
-                            onClick: (picker) => {
-                                picker.hide();
-                                void vscode.commands.executeCommand('xmlya.player.playTrack', track.trackId, album.id);
-                            },
-                        })
-                ),
-                sort,
-                pagination: { pageNum, pageSize, totalCount },
-                onPageChange: (pageNum) =>
-                    this.showAlbumTracks({ quickPick, album, params: { ...params, pageNum } }, true),
-                onSortChange: (sort) =>
-                    this.showAlbumTracks({ quickPick, album, params: { ...params, sort, pageNum: 1 } }, true),
-            },
-            bySelf ? 'replace' : 'push'
-        );
     }
 }

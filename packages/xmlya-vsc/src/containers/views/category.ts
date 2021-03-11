@@ -38,7 +38,7 @@ export class CategoryEntryTreeNode extends TreeNode {
                 new TreeNode(c.displayValue)
                     .setIcon(c.metadataId === 6666666 ? new ThemeIcon('star') : new ThemeIcon('library'))
                     .setCommand(
-                        'xmlya.sidebar.showAlbumsOfCategory',
+                        'xmlya.category.showAlbumsOfCategory',
                         `${this.c.displayName} - ${c.displayValue}`,
                         this.c.pinyin,
                         c.code

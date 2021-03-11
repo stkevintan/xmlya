@@ -11,7 +11,10 @@ const DescSym = Symbol('desc');
 
 type MethodPropertyKeys<T> = { [K in keyof T]: T[K] extends Func<any[], any> ? K : never }[keyof T];
 
-export const command = (name: string, desc?: string) => <T extends Runnable, F extends Func<any[], PromiseOrNot<void>>>(
+export const command = (name: string, desc?: string | boolean) => <
+    T extends Runnable,
+    F extends Func<any[], PromiseOrNot<void>>
+>(
     target: T,
     propertyKey: MethodPropertyKeys<T>,
     descriptor: TypedPropertyDescriptor<F>
@@ -27,7 +30,7 @@ export const command = (name: string, desc?: string) => <T extends Runnable, F e
     Reflect.defineMetadata(CommandSym, commands, target);
 
     if (desc) {
-        Reflect.defineMetadata(DescSym, desc, target, propertyKey as string);
+        Reflect.defineMetadata(DescSym, desc, target, typeof propertyKey !== 'string' ? '' : propertyKey);
     }
     // proxy the error handler
     const method = target[propertyKey];
@@ -74,21 +77,28 @@ export abstract class Runnable {
     private lock(title: string) {
         if (this.locked) return;
         this.locked = true;
-        void vscode.window.withProgress(
-            {
-                title,
-                location: vscode.ProgressLocation.Notification,
-            },
-            () =>
-                new Promise<void>(
-                    (res) =>
-                        (this.release = () => {
-                            this.locked = false;
-                            this.release = undefined;
-                            res();
-                        })
-                )
-        );
+        if (title) {
+            void vscode.window.withProgress(
+                {
+                    title,
+                    location: vscode.ProgressLocation.Notification,
+                },
+                () =>
+                    new Promise<void>(
+                        (res) =>
+                            (this.release = () => {
+                                this.locked = false;
+                                this.release = undefined;
+                                res();
+                            })
+                    )
+            );
+        } else {
+            this.release = () => {
+                this.locked = false;
+                this.release = undefined;
+            };
+        }
     }
 
     get isLocked() {
@@ -113,14 +123,18 @@ export abstract class Runnable {
         for (const command of commands) {
             const title = Reflect.getMetadata(DescSym, this, command.propertyKey);
             this.context.subscriptions.push(
-                vscode.commands.registerCommand(`xmlya.${command.name}`, async (...args: any[]) => {
+                vscode.commands.registerCommand(`xmlya.${command.name}`,  (...args: any[]) => {
                     // TODO: add debounce if necessary.
-                    if (title && this.locked) return;
+                    if (title != null && this.locked) return;
                     try {
-                        if (title) {
+                        if (title != null) {
                             this.lock(title);
                         }
-                        await (this as any)[command.propertyKey](...args);
+                        const ret = (this as any)[command.propertyKey](...args);
+                        if(isPromise(ret)) {
+                            return ret.catch(() => this.release?.());
+                        }
+                        return ret;
                     } finally {
                         this.release?.();
                     }

@@ -72,6 +72,7 @@ export class QuickPickTreeAction extends QuickPickTreeLeaf {
 
 export type QuickPickTreeItem = QuickPickTreeParent | QuickPickTreeLeaf | QuickPickTreeAction;
 
+const HIDEN = Symbol('HIDEN');
 export class CtrlButton implements vscode.QuickInputButton {
     static readonly Asc = new CtrlButton('triangle-up', 'asc order');
     static readonly Desc = new CtrlButton('triangle-down', 'desc order');
@@ -91,6 +92,19 @@ export class CtrlButton implements vscode.QuickInputButton {
 type HistoryAction = 'replace' | 'push' | 'ignore';
 
 export class QuickPick extends vscode.Disposable {
+    private static quickPickPool = new Map<string, QuickPick>();
+    static get(key?: string): QuickPick {
+        if (!key) return new QuickPick({ disposeOnHide: true });
+        let quickPick = this.quickPickPool.get(key);
+        if (!quickPick) {
+            this.quickPickPool.set(key, (quickPick = new QuickPick()));
+        }
+        return quickPick;
+    }
+    static values(): QuickPick[] {
+        return [...this.quickPickPool.values()];
+    }
+
     private readonly quickPick;
     private disposables: vscode.Disposable[] = [];
     constructor({ disposeOnHide, ignoreFocusOut }: { disposeOnHide?: boolean; ignoreFocusOut?: boolean } = {}) {
@@ -294,6 +308,24 @@ export class QuickPick extends vscode.Disposable {
         this.render(title || '', [LoadingTreeItem], 'ignore');
         this.quickPick.enabled = false;
         this.quickPick.busy = true;
+        return {
+            raceWith: async <T>(task: Promise<T>): Promise<T | null> => {
+                const onHide = new Promise<void>((_, reject) => {
+                    const handle = this.quickPick.onDidHide(() => {
+                        reject(new Error('loading cancelled'));
+                        handle.dispose();
+                    });
+                });
+                try {
+                    const taskRet = await Promise.race([task, onHide]);
+                    return taskRet as T;
+                } catch (err) {
+                    this.quickPick.enabled = true;
+                    this.quickPick.busy = false;
+                    return null;
+                }
+            },
+        };
     }
 
     private flattenTree = (treeItems: QuickPickTreeItem[], deep = 0): IQuickPickItem[] => {

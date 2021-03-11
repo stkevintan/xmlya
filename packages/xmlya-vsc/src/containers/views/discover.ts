@@ -24,12 +24,12 @@ class DiscoverEntryTreeNode extends TreeNode {
         return [
             new TreeNode('推荐')
                 .setIcon(new ThemeIcon('thumbsup'))
-                .setCommand('xmlya.sidebar.recommendations', `${this.entry.title} - 推荐`, this.entry.albumList),
+                .setCommand('xmlya.discover.recommendations', `${this.entry.title} - 推荐`, this.entry.albumList),
             new TreeNode(`新品榜`)
                 .setIcon(new ThemeIcon('flame'))
-                .setCommand('xmlya.sidebar.soar', `${this.entry.title} - 新品榜`, this.entry.soar),
+                .setCommand('xmlya.discover.soar', `${this.entry.title} - 新品榜`, this.entry.soar),
             ...this.entry.hotWord.map((word) => {
-                const node = new TreeNode(word).setIcon(new ThemeIcon('tag')).setCommand('xmlya.global.search', word);
+                const node = new TreeNode(word).setIcon(new ThemeIcon('tag')).setCommand('xmlya.common.search', word);
                 return node;
             }),
         ];

@@ -133,13 +133,13 @@
                 "category": "Ximalaya"
             },
             {
-                "title": "User Detail",
-                "command": "xmlya.user.detail",
+                "title": "Show User Profile",
+                "command": "xmlya.showUserProfile",
                 "category": "Ximalaya"
             },
             {
                 "title": "Play Track",
-                "command": "xmlya.player.playTrack",
+                "command": "xmlya.player.play",
                 "category": "Ximalaya"
             },
             {
@@ -193,13 +193,8 @@
                 "category": "Ximalaya"
             },
             {
-                "title": "Toggle progress",
-                "command": "xmlya.player.toggleProgress",
-                "category": "Ximalaya"
-            },
-            {
                 "title": "Show album tracks",
-                "command": "xmlya.player.showAlbumTracks",
+                "command": "xmlya.common.showAlbumTracks",
                 "category": "Ximalaya"
             },
             {
@@ -214,7 +209,7 @@
             },
             {
                 "title": "Search",
-                "command": "xmlya.global.search",
+                "command": "xmlya.common.search",
                 "icon": "$(search)"
             },
             {
@@ -257,7 +252,7 @@
                     "group": "navigation"
                 },
                 {
-                    "command": "xmlya.global.search",
+                    "command": "xmlya.common.search",
                     "when": "view == xmlya-playing",
                     "group": "navigation"
                 }
