@@ -89,7 +89,7 @@
             height: @width;
             border-top-left-radius: (@width / 2);
             border-bottom-left-radius: (@width / 2);
-            background: #f86442;
+            background: #426cf8;
             left: 0;
             bottom: 0;
             pointer-events: none;

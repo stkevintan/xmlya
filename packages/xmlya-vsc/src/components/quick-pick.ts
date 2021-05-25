@@ -310,9 +310,10 @@ export class QuickPick extends vscode.Disposable {
         this.quickPick.busy = true;
         return {
             raceWith: async <T>(task: Promise<T>): Promise<T | null> => {
+                const canceledSym = Symbol('loadingCanceled');
                 const onHide = new Promise<void>((_, reject) => {
                     const handle = this.quickPick.onDidHide(() => {
-                        reject(new Error('loading cancelled'));
+                        reject(canceledSym);
                         handle.dispose();
                     });
                 });
@@ -322,7 +323,11 @@ export class QuickPick extends vscode.Disposable {
                 } catch (err) {
                     this.quickPick.enabled = true;
                     this.quickPick.busy = false;
-                    return null;
+                    if (err === canceledSym) {
+                        return null;
+                    }
+                    this.quickPick.hide();
+                    throw err;
                 }
             },
         };

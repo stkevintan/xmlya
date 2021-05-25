@@ -49,7 +49,7 @@ export class Configuration {
     }
 
     static get statusBarItemBase(): number {
-        return this.get<number>(ConfigKeys.StatusBarItemBase) ?? -100;
+        return this.get<number>(ConfigKeys.StatusBarItemBase) ?? 1;
     }
 
     static get isDebugColorOverrided(): boolean {

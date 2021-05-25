@@ -3,7 +3,7 @@ import 'reflect-metadata';
 import * as vscode from 'vscode';
 import { ContextService } from './context';
 import { Func, isPromise, PromiseOrNot } from './lib';
-import { Notification } from './lib/logger';
+import { Logger, Notification } from './lib/logger';
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 const CommandSym = Symbol('command');
@@ -123,7 +123,7 @@ export abstract class Runnable {
         for (const command of commands) {
             const title = Reflect.getMetadata(DescSym, this, command.propertyKey);
             this.context.subscriptions.push(
-                vscode.commands.registerCommand(`xmlya.${command.name}`,  (...args: any[]) => {
+                vscode.commands.registerCommand(`xmlya.${command.name}`, (...args: any[]) => {
                     // TODO: add debounce if necessary.
                     if (title != null && this.locked) return;
                     try {
@@ -131,10 +131,13 @@ export abstract class Runnable {
                             this.lock(title);
                         }
                         const ret = (this as any)[command.propertyKey](...args);
-                        if(isPromise(ret)) {
+                        if (isPromise(ret)) {
                             return ret.catch(() => this.release?.());
                         }
                         return ret;
+                    } catch (e) {
+                        Logger.Channel?.appendLine(`Failed to execute command xmlya.${command.name}: ${e}`);
+                        throw e;
                     } finally {
                         this.release?.();
                     }
