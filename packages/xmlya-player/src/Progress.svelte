@@ -1,10 +1,12 @@
 <script lang="ts">
     import { formatTimestamp, getVscode } from './utils';
-    export let max = 0;
-    export let value = 0;
-    $: percent = (value * 100) / max;
-
-    function onChange() {
+    export let max: number | undefined = undefined;
+    export let value: number = 0;
+    $: computedValue = max === undefined || max < value ? undefined : value;
+    $: percent = max && computedValue ? (computedValue * 100) / max : 0;
+    function onChange(e: Event) {
+        const valStr = (e.target as HTMLInputElement)?.value;
+        if (valStr) value = parseInt(valStr, 10);
         getVscode().postMessage({
             type: 'update-progress',
             payload: { value },
@@ -13,16 +15,21 @@
 
 </script>
 
-{#if max > 0}
-    <div class="container">
-        <span class="position time">{formatTimestamp(value)}</span>
-        <div class="progress">
-            <span class="slider-bar" style="width: {percent}%" />
-            <input type="range" class="range-slider" min="0" {max} bind:value on:change={onChange} />
-        </div>
-        <span class="total time">{formatTimestamp(max)}</span>
+<div class="container">
+    <span class="position time">{formatTimestamp(computedValue)}</span>
+    <div class="progress">
+        <span class="slider-bar" style="width: {percent}%" />
+        <input
+            type="range"
+            class="range-slider"
+            min="0"
+            max={max || 0}
+            value={computedValue || 0}
+            on:change={onChange}
+        />
     </div>
-{/if}
+    <span class="total time">{formatTimestamp(max)}</span>
+</div>
 
 <style lang="less">
     @width: 3px;

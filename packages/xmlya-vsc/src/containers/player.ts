@@ -53,31 +53,30 @@ export class Player extends Runnable {
     @command('player.play', 'Loading track...')
     async play(trackId: number, albumId: number) {
         if (trackId === undefined || albumId === undefined) return;
-        this.playingAudio = await this.sdk.getTrackAudio({ trackId });
-        Notification.assert(this.playingAudio, 'No track to play.');
-        // if playContext is outdated.
-        if (this.playContext === undefined || this.playingTrack?.albumId !== albumId) {
-            this.playContext = await this.sdk.getContextTracks({ trackId });
-        }
-        assert(this.playingTrack, 'no track to play');
-        this.context.set({
-            'player.trackTitle': this.playingTrack.trackName,
-            'player.trackAlbum': this.playingTrack.albumName,
-            'player.trackDuration': this.playingTrack.duration,
-            'player.trackCover': `https://imagev2.xmcdn.com/${this.playingTrack.trackCoverPath}`,
-        });
-
-        const index = this.playlist.findIndex((item) => item.trackId === this.playingAudio?.trackId);
-        if (index !== -1) {
-            this.context.set('player.hasPrev', index > 0 || this.playlist[0].index !== 1);
-            this.context.set('player.hasNext', index < this.playlist.length - 1 || this.playContext!.hasMore);
-        } else {
-            this.context.set('player.hasPrev', false);
-            this.context.set('player.hasnext', false);
-        }
-        // set loading state ahead of time.
+        this.context.set('player.readyState', 'resolving');
         try {
-            this.context.set('player.readyState', 'loading');
+            this.playingAudio = await this.sdk.getTrackAudio({ trackId });
+            Notification.assert(this.playingAudio, 'No track to play.');
+            // if playContext is outdated.
+            if (this.playContext === undefined || this.playingTrack?.albumId !== albumId) {
+                this.playContext = await this.sdk.getContextTracks({ trackId });
+            }
+            assert(this.playingTrack, 'no track to play');
+            this.context.set({
+                'player.trackTitle': this.playingTrack.trackName,
+                'player.trackAlbum': this.playingTrack.albumName,
+                'player.trackDuration': this.playingTrack.duration,
+                'player.trackCover': `https://imagev2.xmcdn.com/${this.playingTrack.trackCoverPath}`,
+            });
+
+            const index = this.playlist.findIndex((item) => item.trackId === this.playingAudio?.trackId);
+            if (index !== -1) {
+                this.context.set('player.hasPrev', index > 0 || this.playlist[0].index !== 1);
+                this.context.set('player.hasNext', index < this.playlist.length - 1 || this.playContext!.hasMore);
+            } else {
+                this.context.set('player.hasPrev', false);
+                this.context.set('player.hasnext', false);
+            }
             if (!this.playingAudio.src) {
                 Notification.assertTrue(
                     this.playingAudio.canPlay,
@@ -87,14 +86,14 @@ export class Player extends Runnable {
             }
 
             Notification.assert(this.playingAudio.src, 'Get audio source failed');
+
+            await this.mpv.play(this.playingAudio.src);
+            // do not need await.
+            void this.resume();
         } catch (e) {
             this.context.set('player.readyState', 'error');
             throw e;
         }
-
-        await this.mpv.play(this.playingAudio.src);
-        // do not need await.
-        void this.resume();
     }
 
     private traceContext?: { trackId: number; start: () => void; stop: () => void };

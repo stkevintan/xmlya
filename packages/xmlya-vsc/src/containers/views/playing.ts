@@ -2,7 +2,6 @@ import { Mpv } from '@xmlya/mpv';
 import { ContextService } from 'src/context';
 import { Uri, Event, Webview, WebviewView, WebviewViewProvider, EventEmitter, Disposable } from 'vscode';
 import { debounce } from 'throttle-debounce-ts';
-import { asyncInterval } from 'src/lib';
 interface IPlayerState {
     total: number;
     album: string;
@@ -30,21 +29,23 @@ export class PlayingWebviewProvider implements WebviewViewProvider {
         const changes: Partial<IPlayerState> = {};
         let changed = false;
         if (keys.includes('player.readyState')) {
-            switch (this.context.get('player.readyState')) {
+            const state = this.context.get('player.readyState');
+            switch (state) {
                 case 'playing':
                     changes.playing = true;
-                    // this.onPosSync.fire();
+                    changed = true;
                     break;
-                case 'seeking':
                 case 'loading':
+                case 'seeking':
                 case 'paused':
                     changes.playing = false;
-                    // this.onPosSync.fire();
+                    changed = true;
                     break;
-                default:
+                case 'error':
+                case 'idle':
+                case 'resolving':
                     return { type: 'clearState' };
             }
-            changed = true;
         }
 
         if (keys.includes('player.trackTitle')) {

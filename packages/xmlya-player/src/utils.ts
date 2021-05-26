@@ -7,7 +7,7 @@ export function getVscode() {
     return (cache = (window as any).acquireVsCodeApi());
 }
 
-export function formatTimestamp(sec: number): string {
+export function formatTimestamp(sec: number | undefined): string {
     if (sec === undefined) return '--:--';
     const segArr: number[] = [];
     // s, m, h

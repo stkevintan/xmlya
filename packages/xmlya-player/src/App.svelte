@@ -32,6 +32,7 @@
                     break;
                 case 'clearState':
                     state = {};
+                    position = 0;
                     break;
             }
         };
@@ -42,9 +43,10 @@
         return () => window.removeEventListener('message', onMessage);
     });
     // we must add position to the condition or body, so that svelte can detect the change of position.
-    $: if (state.playing && position !== undefined) {
+    $: if (state.playing && position !== -1) {
         getVscode().postMessage({ type: 'sync-pos' });
     }
+
 </script>
 
 <main style="--background-url: url({state.cover});--cover-url: url({state.cover ?? emptyDisk});">

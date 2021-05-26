@@ -11,13 +11,13 @@
         "tooltip": "Previous track",
         "text": "$(chevron-left)",
         "command": "xmlya.player.goPrev",
-        "when": "player.hasPrev && player.readyState != 'unload'"
+        "when": "player.hasPrev "
     },
     {
         "key": "loading",
         "tooltip": "Loading",
         "text": "$(loading~spin)",
-        "when": "player.readyState == 'seeking' || player.readyState == 'loading'"
+        "when": "player.readyState == 'seeking' || player.readyState == 'loading' || player.readyState == 'resolving'"
     },
     {
         "key": "pause",
@@ -38,7 +38,7 @@
         "tooltip": "Next track",
         "text": "$(chevron-right)",
         "command": "xmlya.player.goNext",
-        "when": "player.hasNext && player.readyState != 'unload'"
+        "when": "player.hasNext"
     },
     // {
     //     "key": "time-remaining",
@@ -51,14 +51,14 @@
         "tooltip": "Unmute",
         "text": "$(mute)",
         "command": "xmlya.player.setVolume",
-        "when": "player.isMuted && player.readyState != 'unload'"
+        "when": "player.isMuted"
     },
     {
         "key": "mute",
         "tooltip": "Mute",
         "text": "$(unmute) {player.volume}",
         "command": "xmlya.player.setVolume",
-        "when": "!player.isMuted && player.readyState != 'unload'"
+        "when": "!player.isMuted"
     },
     // {
     //     "key": "volume",
@@ -71,14 +71,14 @@
         "key": "speed",
         "tooltip": "Set playback speed",
         "text": "{player.speed}x",
-        "command": "xmlya.player.setSpeed",
-        "when": "player.readyState != 'unload'"
+        "command": "xmlya.player.setSpeed"
+        // "when": "player.readyState != 'unload'"
     },
     {
         "key": "playlist",
         "tooltip": "playlist",
         "text": "$(note)",
-        "command":"xmlya.player.showPlaylist",
+        "command": "xmlya.player.showPlaylist",
         "when": "player.hasNext || player.hasPrev"
     }
 ]

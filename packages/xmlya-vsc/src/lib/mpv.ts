@@ -108,10 +108,9 @@ export async function startMpv(context: ContextService) {
                 context.set('player.readyState', 'paused');
             }),
             mpv.on('end-file', (data) => {
+                context.set('player.readyState', 'playend');
                 if (['error', 'unknown'].includes(data.reason)) {
                     context.set('player.readyState', 'error');
-                } else if (data.reason === 'quit') {
-                    context.set('plyaer.readyState', 'unload');
                 } else if (data.reason === 'eof') {
                     // try to play next track.
                     void vscode.commands.executeCommand('xmlya.player.goNext');
