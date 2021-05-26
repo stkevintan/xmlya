@@ -1,8 +1,7 @@
 <script lang="ts">
-    import { getVscode } from './vscode';
-
-    export let max: number = 0;
-    export let value: number = 0;
+    import { formatTimestamp, getVscode } from './utils';
+    export let max = 0;
+    export let value = 0;
     $: percent = (value * 100) / max;
 
     function onChange() {
@@ -11,28 +10,44 @@
             payload: { value },
         });
     }
+
 </script>
 
 {#if max > 0}
-    <div class="progress-container">
-        <span class="slider-bar" style="width: {percent}%" />
-        <input type="range" class="range-slider" min="0" {max} bind:value on:change={onChange} />
+    <div class="container">
+        <span class="position time">{formatTimestamp(value)}</span>
+        <div class="progress">
+            <span class="slider-bar" style="width: {percent}%" />
+            <input type="range" class="range-slider" min="0" {max} bind:value on:change={onChange} />
+        </div>
+        <span class="total time">{formatTimestamp(max)}</span>
     </div>
 {/if}
 
 <style lang="less">
-    // @blue: #3fa4f4;
     @width: 3px;
-    .progress-container {
+
+    .container {
+        display: flex;
+        align-items: center;
+        .time {
+            flex: 0 0 auto;
+            display: block;
+            color: #a3a3ac;
+        }
+    }
+    .progress {
         position: relative;
         width: 100%;
+        margin: 0 15px;
+        flex: 1 1 auto;
         .range-slider {
+            display: block;
             -webkit-appearance: none;
             appearance: none;
             background: #a3a3ac;
             width: 100%;
             border-radius: (@width / 2);
-            vertical-align: bottom;
             margin: 0;
             height: @width;
             cursor: pointer;
@@ -73,17 +88,6 @@
             border: 0;
         }
 
-        // .range-value {
-        //     text-transform: capitalize;
-        //     //   float: right;
-        //     vertical-align: bottom;
-        //     min-width: 30px;
-        //     display: inline-block;
-        //     text-align: center;
-        //     border-radius: 3px;
-        //     font-size: 0.9em;
-        // }
-
         .slider-bar {
             position: absolute;
             height: @width;
@@ -95,4 +99,5 @@
             pointer-events: none;
         }
     }
+
 </style>

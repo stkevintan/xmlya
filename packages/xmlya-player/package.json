@@ -12,7 +12,8 @@
     "license": "ISC",
     "dependencies": {
         "svelte": "^3.35.0",
-        "svelte-icons": "^2.1.0"
+        "svelte-icons": "^2.1.0",
+        "throttle-debounce-ts": "^1.1.1"
     },
     "staticFiles": {
         "staticPath": [

@@ -1,19 +1,9 @@
 import { Mpv } from '@xmlya/mpv';
 import { ContextService } from 'src/context';
+import { Uri, Event, Webview, WebviewView, WebviewViewProvider, EventEmitter, Disposable } from 'vscode';
+import { debounce } from 'throttle-debounce-ts';
 import { asyncInterval } from 'src/lib';
-import {
-    CancellationToken,
-    Uri,
-    Event,
-    Webview,
-    WebviewView,
-    WebviewViewProvider,
-    WebviewViewResolveContext,
-    EventEmitter,
-    Disposable,
-} from 'vscode';
 interface IPlayerState {
-    currentPos: number;
     total: number;
     album: string;
     title: string;
@@ -28,16 +18,68 @@ export class PlayingWebviewProvider implements WebviewViewProvider {
 
     private _onDidWebviewRefresh: EventEmitter<void> = new EventEmitter<void>();
 
+    private onPosSync = new EventEmitter<void>();
+
     readonly onDidWebviewRefresh: Event<void> = this._onDidWebviewRefresh.event;
 
     refresh() {
         this._onDidWebviewRefresh.fire();
     }
 
+    private diffChanges(keys: string[]): null | { type: string; payload?: any } {
+        const changes: Partial<IPlayerState> = {};
+        let changed = false;
+        if (keys.includes('player.readyState')) {
+            switch (this.context.get('player.readyState')) {
+                case 'playing':
+                    changes.playing = true;
+                    // this.onPosSync.fire();
+                    break;
+                case 'seeking':
+                case 'loading':
+                case 'paused':
+                    changes.playing = false;
+                    // this.onPosSync.fire();
+                    break;
+                default:
+                    return { type: 'clearState' };
+            }
+            changed = true;
+        }
+
+        if (keys.includes('player.trackTitle')) {
+            changes.title = this.context.get<string>('player.trackTitle');
+            changed = true;
+        }
+        if (keys.includes('player.trackAlbum')) {
+            changes.album = this.context.get<string>('player.trackAlbum');
+            changed = true;
+        }
+        if (keys.includes('player.trackDuration')) {
+            changes.total = this.context.get<number>('player.trackDuration');
+            // this.onPosSync.fire();
+            changed = true;
+        }
+        if (keys.includes('player.trackCover')) {
+            changes.cover = this.context.get<string>('player.trackCover');
+            changed = true;
+        }
+
+        if (changed) {
+            return { type: 'updateState', payload: changes };
+        }
+        return null;
+    }
+
+    private async getCurrentPos(): Promise<number> {
+        const pos = Math.ceil(await this.mpv.getTimePos());
+        return Number.isNaN(pos) ? 0 : pos;
+    }
+
     resolveWebviewView(
-        webviewView: WebviewView,
-        context: WebviewViewResolveContext<unknown>,
-        token: CancellationToken
+        webviewView: WebviewView
+        // context: WebviewViewResolveContext<unknown>,
+        // token: CancellationToken
     ): void | Thenable<void> {
         webviewView.webview.options = {
             enableScripts: true,
@@ -58,48 +100,11 @@ export class PlayingWebviewProvider implements WebviewViewProvider {
         );
 
         handles.push(
-            this.context.onChange((keys) => {
-                const changes: Partial<IPlayerState> = {};
-                if (keys.includes('player.readyState')) {
-                    switch (this.context.get('player.readyState')) {
-                        case 'playing':
-                            changes.playing = true;
-                            break;
-                        case 'seeking':
-                        case 'loading':
-                        case 'paused':
-                            changes.playing = false;
-                            break;
-                        default:
-                            void webviewView.webview.postMessage({ type: 'clear' });
-                    }
-                }
-
-                if (keys.includes('player.trackTitle')) {
-                    changes.title = this.context.get<string>('player.trackTitle');
-                }
-                if (keys.includes('player.trackAlbum')) {
-                    changes.album = this.context.get<string>('player.trackAlbum');
-                }
-                if (keys.includes('player.trackDuration')) {
-                    changes.total = this.context.get<number>('player.trackDuration');
-                }
-                if (keys.includes('player.trackCover')) {
-                    changes.cover = this.context.get<string>('player.trackCover');
-                }
-
-                if (Object.keys(changes).length > 0) {
-                    void webviewView.webview.postMessage({ type: 'setState', payload: changes });
-                }
-            })
-        );
-
-        handles.push(
             webviewView.webview.onDidReceiveMessage((e) => {
                 if (!e || !e.type) return;
                 const readyState = this.context.get<string>('player.readyState')!;
                 switch (e.type) {
-                    case 'pollState':
+                    case 'watch-state':
                         if (['playing', 'seeking', 'loading', 'paused'].includes(readyState))
                             void webviewView.webview.postMessage({
                                 type: 'setState',
@@ -111,28 +116,36 @@ export class PlayingWebviewProvider implements WebviewViewProvider {
                                     cover: this.context.get<string>('player.trackCover'),
                                 },
                             });
+                        handles.push(
+                            this.onPosSync.event(async () => {
+                                await webviewView.webview.postMessage({
+                                    type: 'setPosition',
+                                    payload: await this.getCurrentPos(),
+                                });
+                            })
+                        );
+                        handles.push(
+                            this.context.onChange((keys) => {
+                                const message = this.diffChanges(keys);
+                                if (message) {
+                                    void webviewView.webview.postMessage(message);
+                                }
+                            })
+                        );
+                        break;
+                    case 'sync-pos':
+                        this.deboucedFirePosSync();
                         break;
                     case 'update-progress':
                         const { value } = e.payload;
                         if (['playing', 'paused'].includes(readyState)) {
-                            void this.mpv.seek(value, 'absolute');
+                            void this.mpv.seek(value, 'absolute').then(() => this.onPosSync.fire());
                         }
                 }
             })
         );
-        handles.push(
-            asyncInterval(async () => {
-                if (this.context.get<string>('player.readyState') !== 'playing') return;
-                const cur = Math.ceil(await this.mpv.getTimePos());
-                void webviewView.webview.postMessage({
-                    type: 'setState',
-                    payload: <Partial<IPlayerState>>{
-                        currentPos: isNaN(cur) ? 0 : cur,
-                    },
-                });
-            }, 1000)
-        );
     }
+    private deboucedFirePosSync = debounce(1000, () => this.onPosSync.fire());
 
     private getHtml(webview: Webview): string {
         const styleResourceUri = webview.asWebviewUri(Uri.joinPath(this.root, 'player', 'index.css'));
