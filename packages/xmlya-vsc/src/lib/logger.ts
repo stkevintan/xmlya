@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { normError } from './common';
 
 export enum LogLevel {
     debug,
@@ -33,12 +34,10 @@ export class Notification {
         }
     }
 
-    static throw(error?: string | Error): never {
+    static throw(error?: unknown): never {
         const message = !error
             ? ''
-            : typeof error === 'string'
-            ? error
-            : error.message ?? Object.prototype.toString.call(error);
+            : normError(error);
 
         void vscode.window.showErrorMessage(message);
         throw error instanceof Error ? error : new Error(message);

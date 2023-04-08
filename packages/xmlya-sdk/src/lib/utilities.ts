@@ -12,7 +12,7 @@ export const lazy = <T>(fn: () => T) => {
 };
 
 
-export function md5(str: string, encoding: crypto.HexBase64Latin1Encoding = 'hex'): string {
+export function md5(str: string, encoding: crypto.BinaryToTextEncoding = 'hex'): string {
     const md5 = crypto.createHash('md5');
     return md5.update(str).digest(encoding);
 }

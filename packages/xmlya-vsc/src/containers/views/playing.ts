@@ -12,7 +12,7 @@ interface IPlayerState {
 export class PlayingWebviewProvider implements WebviewViewProvider {
     private readonly root: Uri;
     constructor(private mpv: Mpv, private readonly context: ContextService) {
-        this.root = this.context.extensionUri;
+        this.root = this.context.extension.extensionUri;
     }
 
     private _onDidWebviewRefresh: EventEmitter<void> = new EventEmitter<void>();
@@ -97,7 +97,7 @@ export class PlayingWebviewProvider implements WebviewViewProvider {
                 Disposable.from(...handles).dispose();
             },
             null,
-            this.context.subscriptions
+            this.context.extension.subscriptions
         );
 
         handles.push(

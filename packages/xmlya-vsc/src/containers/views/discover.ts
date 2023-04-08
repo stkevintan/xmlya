@@ -1,7 +1,7 @@
 import { XmlyaSDK } from '@xmlya/sdk';
 import { CardsEntity } from '@xmlya/sdk/dist/types/getRecomends';
 import { TreeNode } from 'src/components/tree';
-import { Logger } from 'src/lib';
+import { Logger, normError } from 'src/lib';
 import {
     TreeDataProvider,
     TreeItem,
@@ -58,7 +58,7 @@ export class DiscoverTreeDataProvider implements TreeDataProvider<TreeNode> {
             const { cards } = await this.sdk.getRecommend();
             return cards.map((c) => new DiscoverEntryTreeNode(c));
         } catch (err) {
-            logger.error(err.message);
+            logger.error(normError(err));
             throw err;
         }
     }

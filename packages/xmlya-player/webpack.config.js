@@ -26,6 +26,7 @@ module.exports = /** @type {import('webpack').Configuration} */ ({
         },
         extensions: ['.mjs', '.js', '.ts', '.less', '.svelte'],
         mainFields: ['svelte', 'browser', 'module', 'main'],
+        conditionNames: ['svelte'],
     },
     plugins: [
         new MiniCssExtractPlugin({

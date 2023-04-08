@@ -1,4 +1,4 @@
-import { debounce, throttle } from 'throttle-debounce-ts';
+import { throttle } from 'throttle-debounce-ts';
 
 let cache: any = null;
 
@@ -24,14 +24,22 @@ export function formatTimestamp(sec: number | undefined): string {
 }
 
 export function flexWrapWatcher(node: HTMLDivElement) {
-    let wrapped = false;
-    onResize();
-    function onResize() {
-        if (checkWrapped() !== wrapped) {
-            wrapped = !wrapped;
+    let wrapped: boolean | undefined = undefined;
+    const onResize = () => {
+        const checked = checkWrapped();
+        if (checked !== wrapped) {
+            wrapped = checked;
             node.dispatchEvent(new CustomEvent('flexWrapChanged', { detail: { wrapped } }));
         }
-    }
+    };
+    onResize();
+    const onResizeThrottled = throttle({ trailing: true, delay: 500 }, onResize);
+    window.addEventListener('resize', onResizeThrottled);
+    return {
+        update: onResize,
+        destroy: () => window.removeEventListener('resize', onResizeThrottled),
+    };
+
     function checkWrapped(): boolean {
         const firstChild = node.firstElementChild as HTMLElement;
         const lastChild = node.lastElementChild as HTMLElement;
@@ -41,10 +49,35 @@ export function flexWrapWatcher(node: HTMLDivElement) {
 
         return node.offsetHeight >= firstChild.offsetHeight + lastChild.offsetHeight;
     }
+}
+
+export function textOverflowWatcher(node: HTMLDivElement) {
+    let overflowed: boolean | undefined = undefined;
+    const span = node.firstElementChild as HTMLSpanElement;
+    if (!span) {
+        return {};
+    }
+    const onResize = () =>  {
+        const checked = isOverflowing();
+        if (checked !== overflowed) {
+            overflowed = checked;
+            if (overflowed) {
+                span.classList.add('text-overflowed');
+            } else {
+                span.classList.remove('text-overflowed');
+            }
+        }
+    };
     const onResizeThrottled = throttle({ trailing: true, delay: 500 }, onResize);
-    window.addEventListener('resize', onResizeThrottled);
+    const obs = new ResizeObserver(onResizeThrottled);
+    obs.observe(node);
+    onResize();
     return {
         update: onResize,
-        destroy: () => window.removeEventListener('resize', onResizeThrottled),
+        destroy: () => obs.unobserve(node),
     };
+    // https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollWidth#example
+    function isOverflowing(): boolean {
+        return node.scrollWidth > node.offsetWidth;
+    }
 }

@@ -1,5 +1,5 @@
 <script>
-    import { flexWrapWatcher } from './utils';
+    import { flexWrapWatcher, textOverflowWatcher } from './utils';
     let wrapped = false;
     export let title = '';
     export let album = '';
@@ -21,9 +21,9 @@
     <div class="cover" />
     {#if title}
         <div class="title">
-            <h1 class="ellipsis">{title || ''}</h1>
+            <h1 use:textOverflowWatcher><span>{title || ''}</span></h1>
             {#if album}
-                <author class="ellipsis">{album}</author>
+                <author use:textOverflowWatcher><span>{album}</span></author>
             {/if}
         </div>
     {/if}
@@ -75,20 +75,20 @@
                 @size: 140px;
                 height: @size;
                 width: @size;
-                margin-bottom: 12px;
+                margin: 0 0 12px 0;
             }
             justify-content: center;
             text-align: center;
         }
     }
-
-    .ellipsis {
-        text-overflow: ellipsis;
-        overflow: hidden;
-        white-space: nowrap;
-    }
     .title {
+        white-space: nowrap;
         line-height: 20px;
+        overflow: hidden;
+        span {
+            display: block;
+            width: fit-content;
+        }
         h1 {
             margin: 0 0 3px 0;
             font-weight: normal;

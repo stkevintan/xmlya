@@ -9,73 +9,20 @@ export type When = string;
 
 interface IContext {
     get<T>(key: string): T | undefined;
+    readonly extension: ExtensionContext;
 }
 
-export class ContextService implements ExtensionContext, IContext {
+export class ContextService implements IContext {
     private store: Record<string, any> = {};
     private event = new EventEmitter<string[]>();
+    get extension() {
+        return this.context;
+    }
 
-    constructor(private context: ExtensionContext) {
+    constructor(private readonly context: ExtensionContext) {
         this.context.subscriptions.push(this.event);
         // set logger level
         Logger.Level = context.extensionMode === ExtensionMode.Production ? LogLevel.info : LogLevel.debug;
-    }
-
-    // A proxy for extension context.
-    get subscriptions() {
-        return this.context.subscriptions;
-    }
-
-    get workspaceState() {
-        return this.context.workspaceState;
-    }
-
-    get globalState() {
-        return this.context.globalState;
-    }
-
-    get extensionUri() {
-        return this.context.extensionUri;
-    }
-
-    get extensionPath() {
-        return this.context.extensionPath;
-    }
-
-    get environmentVariableCollection() {
-        return this.context.environmentVariableCollection;
-    }
-
-    asAbsolutePath(relativePath: string): string {
-        return this.context.asAbsolutePath(relativePath);
-    }
-
-    get storageUri() {
-        return this.context.storageUri;
-    }
-
-    get storagePath() {
-        return this.context.storagePath;
-    }
-
-    get globalStorageUri() {
-        return this.context.globalStorageUri;
-    }
-
-    get globalStoragePath() {
-        return this.context.globalStoragePath;
-    }
-
-    get logUri() {
-        return this.context.logUri;
-    }
-
-    get logPath() {
-        return this.context.logPath;
-    }
-
-    get extensionMode() {
-        return this.context.extensionMode;
     }
 
     private assign(ctx: Record<string, any>) {

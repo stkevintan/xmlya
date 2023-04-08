@@ -14,7 +14,7 @@ export function isLazy<T>(x: T | Lazy<T>): x is Lazy<T> {
 
 export const noop = () => {};
 
-export function omit<T, K extends Array<keyof T>>(obj: T, ...keys: K): Omit<T, K[number]> {
+export function omit<T extends Record<any, any>, K extends Array<keyof T>>(obj: T, ...keys: K): Omit<T, K[number]> {
     return Object.entries(obj).reduce((ret, [key, value]: any) => {
         if (!keys.includes(key)) ret[key] = value;
         return ret;
@@ -29,7 +29,7 @@ export function leftPad(text: string | undefined, length: number) {
 }
 
 export function isPromise<T>(x: PromiseOrNot<T>): x is Promise<T> {
-    return x && 'then' in x;
+    return x && typeof x === 'object' && 'then' in x;
 }
 
 export function isNil<T>(x: T | undefined | null): x is undefined | null {
@@ -40,7 +40,7 @@ export function isntNil<T>(x: T | undefined | null): x is T {
     return !isNil(x);
 }
 
-export function omitNillKeys<T>(obj: T): Partial<T> {
+export function omitNillKeys<T extends Record<any, any>>(obj: T): Partial<T> {
     const keys = Object.keys(obj) as (keyof T)[];
     const copy = {} as Partial<T>;
     for (const key of keys) {
@@ -120,4 +120,11 @@ export function formatSize(bytes: number): string {
         }
     }
     return ret.reverse().join(' ');
+}
+
+export function normError(err: unknown): string {
+    if (err instanceof Error) {
+        return err.message;
+    }
+    return `${err}`;
 }

@@ -24,25 +24,16 @@
                     "id": "xmlya-container",
                     "title": "Ximalaya FM"
                 }
-            ],
-            "panel": [
-                {
-                    "icon": "static/logo_hollow.svg",
-                    "id": "xmlya-panel",
-                    "title": "Ximalya FM"
-                }
             ]
         },
         "views": {
-            "xmlya-panel": [
+            "xmlya-container": [
                 {
                     "id": "xmlya-playing",
                     "name": "Playing",
                     "contextualTitle": "Playing",
                     "type": "webview"
-                }
-            ],
-            "xmlya-container": [
+                },
                 {
                     "id": "xmlya-user",
                     "contextualTitle": "User",
@@ -299,8 +290,8 @@
         "prettier": "^2.2.0",
         "ts-loader": "^8.0.11",
         "tsconfig-paths-webpack-plugin": "^3.3.0",
-        "tslib": "^2.0.3",
-        "typescript": "^4.1.2",
+        "tslib": "^2.5.0",
+        "typescript": "5.0.4",
         "webpack": "^5.8.0",
         "webpack-cli": "^4.2.0"
     },
@@ -311,9 +302,9 @@
         "ansi-escapes": "^4.3.1",
         "gunzip-maybe": "^1.4.2",
         "reflect-metadata": "^0.1.13",
-        "tar": "^6.1.0",
+        "tar": "^6.1.13",
         "throttle-debounce-ts": "^1.1.1",
-        "vscode-test": "^1.4.1",
+        "vscode-test": "^1.6.1",
         "which": "^2.0.2"
     }
 }

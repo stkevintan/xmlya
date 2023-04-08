@@ -1,7 +1,7 @@
 import { XmlyaSDK } from '@xmlya/sdk';
 import { CategoriesEntity, Category } from '@xmlya/sdk/dist/types/getCategories';
 import { TreeNode } from 'src/components/tree';
-import { Logger } from 'src/lib';
+import { Logger, normError } from 'src/lib';
 import { EventEmitter, TreeDataProvider, Event, TreeItem, ThemeIcon, TreeItemCollapsibleState } from 'vscode';
 
 const logger = new Logger('sidetree-Category');
@@ -69,7 +69,7 @@ export class CategoryTreeDataProvider implements TreeDataProvider<TreeNode> {
             const cateogries = await this.sdk.getCategories();
             return cateogries.map((c) => new CategoryRootTreeNode(c));
         } catch (err) {
-            logger.error(err.message);
+            logger.error(normError(err));
             throw err;
         }
     }

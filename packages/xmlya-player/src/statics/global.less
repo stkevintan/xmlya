@@ -6,3 +6,28 @@ body, html {
 *,*:before, *:after {
     box-sizing: border-box;
 }
+
+@keyframes marquee {
+    0% {
+        transform: translateX(0);
+    }
+    10% {
+        transform: translateX(0);
+    }
+    45% {
+        transform: translateX(calc(-100% + 100px));
+    }
+    55% {
+        transform: translateX(calc(-100% + 100px));
+    }
+    90% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+
+.text-overflowed {
+    animation: marquee 15s linear infinite;
+}

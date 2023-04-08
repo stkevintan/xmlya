@@ -49,9 +49,13 @@
 
 </script>
 
-<main style="--background-url: url({state.cover});--cover-url: url({state.cover ?? emptyDisk});">
-    <div class="content">
-        <div class="control-field">
+<main
+    style="--background-url: url({state.cover});
+           --cover-url: url({state.cover ?? emptyDisk}); 
+           --background-color: rgba(12, 14, 23, 84%)"
+>
+    <div class="backdrop">
+        <div class="content">
             <Title title={state.title} album={state.album} playing={state.playing} />
             <Progress max={state.total} value={position ?? 0} />
         </div>
@@ -68,22 +72,20 @@
         background-image: var(--background-url);
         background-color: #fff;
     }
-    .content {
+    .backdrop {
         width: 100%;
         height: 100%;
         overflow: auto;
         display: flex;
         padding: 12px 24px;
-        flex-flow: row nowrap;
         align-items: center;
         justify-content: center;
         backdrop-filter: blur(5px);
-        background: rgba(12, 14, 23, 84%);
+        background: var(--background-color);
     }
-    .control-field {
-        padding: 10px;
+    .content {
         max-width: 700px;
         flex: 1 1 auto;
+        overflow: hidden;
     }
-
 </style>

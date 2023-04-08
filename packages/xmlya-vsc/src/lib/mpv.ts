@@ -10,20 +10,20 @@ import { formatSize } from './common';
 export async function startMpv(context: ContextService) {
     const logLevel = LogLevel[Logger.Level] as any;
     const logger = new Logger('mpv client');
-    const root = context.globalStoragePath;
+    const root = context.extension.globalStorageUri;
     const mpvBinary = await detectMpvBinary();
     if (!mpvBinary) return;
     const mpv = await Mpv.create({
         mpvBinary,
         args: Configuration.mpvAguments,
-        volume: context.globalState.get('xmlya.player.volume'),
-        speed: context.globalState.get('xmlya.player.speed'),
-        mute: context.globalState.get('xmlya.player.isMuted'),
+        volume: context.extension.globalState.get('xmlya.player.volume'),
+        speed: context.extension.globalState.get('xmlya.player.speed'),
+        mute: context.extension.globalState.get('xmlya.player.isMuted'),
         logLevel,
         logger,
     });
 
-    context.subscriptions.push(syncStatus(mpv), syncConfig(mpv));
+    context.extension.subscriptions.push(syncStatus(mpv), syncConfig(mpv));
 
     return mpv;
 
@@ -33,8 +33,8 @@ export async function startMpv(context: ContextService) {
             return Configuration.mpvBinary;
         }
 
-        logger.info('looking for mpv binary at:', root);
-        const provider = findMatchedBinaryProvider(root);
+        logger.info('looking for mpv binary at:', root.fsPath);
+        const provider = findMatchedBinaryProvider(root.fsPath);
         if (provider && provider.checkBinary()) {
             return provider.binaryPath;
         }
@@ -79,7 +79,7 @@ export async function startMpv(context: ContextService) {
             }),
             mpv.watch<boolean>('mute', (mute) => {
                 context.set('player.isMuted', !!mute);
-                void context.globalState.update('xmlya.player.isMuted', !!mute);
+                void context.extension.globalState.update('xmlya.player.isMuted', !!mute);
             }),
 
             mpv.watch<boolean>('seek', (seeking) => {
@@ -87,7 +87,7 @@ export async function startMpv(context: ContextService) {
             }),
             mpv.watch<number>('volume', (volume) => {
                 context.set('player.volume', volume);
-                void context.globalState.update('xmlya.player.volume', volume);
+                void context.extension.globalState.update('xmlya.player.volume', volume);
             }),
             // too many logs.
             // mpv.watch<number>('time-remaining', (countdown) => {
@@ -99,7 +99,7 @@ export async function startMpv(context: ContextService) {
             // }),
             mpv.watch<number>('speed', (speed) => {
                 context.set('player.speed', speed);
-                void context.globalState.update('xmlya.player.speed', speed);
+                void context.extension.globalState.update('xmlya.player.speed', speed);
             }),
             mpv.on('start-file', () => {
                 context.set('player.readyState', 'loading');

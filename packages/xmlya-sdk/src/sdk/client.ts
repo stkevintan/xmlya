@@ -1,4 +1,4 @@
-import got, { Got, Options, Response } from 'got';
+import got, { Got, OptionsInit, Response } from 'got';
 import assert from 'assert';
 import { md5 } from '../lib/utilities';
 import { Duplex } from 'stream';
@@ -9,16 +9,16 @@ export type ResBody<T = unknown> = {
     data?: T;
 };
 
-export type OverrideOptions = Pick<Options, 'headers' | 'prefixUrl' | 'protocol' | 'followRedirect'>;
+export type OverrideOptions = Pick<OptionsInit, 'headers' | 'prefixUrl' | 'followRedirect'>;
 export interface IClient {
     getRaw<T = unknown, R = {}>(
         url: string,
-        params?: Options['searchParams'],
+        params?: OptionsInit['searchParams'],
         options?: OverrideOptions
     ): Promise<ResBody<T> & R>;
     get: <T>(url: string, params?: any) => Promise<T>;
     post: <T>(url: string, body?: any) => Promise<T>;
-    getStream: (url: string, params?: Options['searchParams'], options?: OverrideOptions) => Promise<Duplex>;
+    getStream: (url: string, params?: OptionsInit['searchParams'], options?: OverrideOptions) => Promise<Duplex>;
     // TODO: add other methods: post , delete
 }
 
@@ -55,8 +55,12 @@ export class Client implements IClient {
             },
             handlers: [
                 async (options, next) => {
-                    options.headers.Host = options.url.host;
-                    if (options.url.host === 'www.ximalaya.com' && options.url.pathname !== '/revision/time') {
+                    if (!options.url) {
+                        return next(options);
+                    }
+                    const url = options.url instanceof URL ? options.url : new URL(options.url);
+                    options.headers.Host = url.host;
+                    if (url.host === 'www.ximalaya.com' && url.pathname !== '/revision/time') {
                         options.headers['xm-sign'] = await this.getSign();
                     }
                     return next(options);
@@ -92,7 +96,7 @@ export class Client implements IClient {
         return JSON.parse(response.body);
     }
 
-    async ['get']<T = unknown>(url: string, params?: Options['searchParams'], options?: OverrideOptions): Promise<T> {
+    async ['get']<T = unknown>(url: string, params?: OptionsInit['searchParams'], options?: OverrideOptions): Promise<T> {
         const body = await this.getRaw<T>(url, params, options);
         const okCode = url.includes('nyx') ? 0 : 200;
         assert(body.ret === okCode, `Get ${url} failed: ${body.msg}`);
@@ -101,13 +105,13 @@ export class Client implements IClient {
 
     async getRaw<T = unknown, R = {}>(
         url: string,
-        params?: Options['searchParams'],
+        params?: OptionsInit['searchParams'],
         options: OverrideOptions = {}
     ): Promise<ResBody<T> & R> {
         try {
             const res = await this.client(url, { prefixUrl: getPrefixUrl(url), searchParams: params, ...options });
             return this.parse<T, R>(res);
-        } catch (e) {
+        } catch (e: any) {
             // re-pack the error
             Error.captureStackTrace(e);
             if (e.response?.body) {
@@ -118,7 +122,7 @@ export class Client implements IClient {
         }
     }
 
-    async getStream(url: string, params?: Options['searchParams'], options: OverrideOptions = {}): Promise<Duplex> {
+    async getStream(url: string, params?: OptionsInit['searchParams'], options: OverrideOptions = {}): Promise<Duplex> {
         try {
             const request = this.client.stream.get(url, {
                 searchParams: params,
@@ -126,13 +130,15 @@ export class Client implements IClient {
                 responseType: 'buffer',
                 ...options,
             });
-            return request;
-        } catch (e) {
-            Error.captureStackTrace(e);
-            if (e.response?.body) {
-                e.message += ` (body: ${e.response.body})`;
+            const duplex = new Duplex();
+            request.pipe(duplex);
+            return duplex;
+        } catch (err: any) {
+            Error.captureStackTrace(err);
+            if (err.response?.body) {
+                err.message += ` (body: ${err.response.body})`;
             }
-            throw e;
+            throw err;
         }
     }
 }

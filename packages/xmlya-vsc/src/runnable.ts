@@ -34,9 +34,9 @@ export const command = (name: string, desc?: string | boolean) => <
     }
     // proxy the error handler
     const method = target[propertyKey];
-    Notification.assertTrue(typeof method === 'function', `Property of ${propertyKey} is not a method.`);
+    Notification.assertTrue(typeof method === 'function', `Property of ${String(propertyKey)} is not a method.`);
 
-    const boundMethod = Symbol(`proxied/${propertyKey}`);
+    const boundMethod = Symbol(`proxied/${String(propertyKey)}`);
 
     const handler = (err: any) => Notification.throw(err);
 
@@ -113,7 +113,7 @@ export abstract class Runnable {
     }
 
     run() {
-        this.context.subscriptions.push({
+        this.context.extension.subscriptions.push({
             dispose: () => {
                 vscode.Disposable.from(...this.subs).dispose();
             },
@@ -122,7 +122,7 @@ export abstract class Runnable {
         if (!commands) return;
         for (const command of commands) {
             const title = Reflect.getMetadata(DescSym, this, command.propertyKey);
-            this.context.subscriptions.push(
+            this.context.extension.subscriptions.push(
                 vscode.commands.registerCommand(`xmlya.${command.name}`, (...args: any[]) => {
                     // TODO: add debounce if necessary.
                     if (title != null && this.locked) return;

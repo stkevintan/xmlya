@@ -5,14 +5,14 @@ import { Common } from './containers/common';
 import { Player } from './containers/player';
 import { View } from './containers/views';
 import { ContextService } from './context';
-import { Logger, startMpv } from './lib';
+import { Logger, normError, startMpv } from './lib';
 
 export async function activate(_context: vscode.ExtensionContext) {
     try {
         const context = new ContextService(_context);
         // setup channel.
         const channel = vscode.window.createOutputChannel('xmlya');
-        context.subscriptions.push(channel);
+        context.extension.subscriptions.push(channel);
         Logger.Channel = channel;
 
         //setup sdk
@@ -29,6 +29,6 @@ export async function activate(_context: vscode.ExtensionContext) {
         }
     } catch (err) {
         // show error
-        void vscode.window.showErrorMessage(err.message);
+        void vscode.window.showErrorMessage(normError(err));
     }
 }

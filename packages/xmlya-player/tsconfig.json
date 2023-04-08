@@ -5,7 +5,15 @@
         "outDir": "./dist",
         "declaration": true,
         "declarationMap": true,
-        "types": ["svelte", "svelte/store", "svelte/motion", "svelte/transition", "svelte/animate", "svelte/easing"]
+        "types": [
+            "svelte",
+            "svelte/store",
+            "svelte/motion",
+            "svelte/transition",
+            "svelte/animate",
+            "svelte/easing",
+            "@types/resize-observer-browser"
+        ]
     },
     "include": ["./src"]
 }
